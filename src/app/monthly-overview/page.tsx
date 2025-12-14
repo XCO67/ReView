@@ -380,18 +380,6 @@ export function MonthlyOverviewContent() {
     totals.combinedRatio = totalKPIs.combinedRatio;
     totals.technicalResult = totalKPIs.premium - totalKPIs.incurredClaims - totalKPIs.expense;
 
-    // Return monthly aggregated data
-      recordsWithInceptionMonth: filteredData.filter(r => r.inceptionMonth).length,
-      monthlyDataLength: monthlyData.length,
-      monthsWithData: monthlyData.filter(m => m.policyCount > 0).length,
-      totals: {
-        policyCount: totals.policyCount,
-        grossPremium: totals.grossPremium,
-        lossRatio: totals.lossRatio,
-        combinedRatio: totals.combinedRatio
-      }
-    });
-
     return {
       monthlyData,
       totals

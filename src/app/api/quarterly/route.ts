@@ -142,12 +142,6 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    // Group data by quarter
-      Q2: quarterlyGroups['Q2'].length,
-      Q3: quarterlyGroups['Q3'].length,
-      Q4: quarterlyGroups['Q4'].length
-    });
-
     // Calculate quarterly metrics according to spec
     const quarters: Record<number, {
       quarter: number;
