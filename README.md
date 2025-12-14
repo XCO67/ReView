@@ -76,12 +76,10 @@ DEFAULT_ADMIN_PASSWORD=secure_password
 
 4. Set up the database:
 ```bash
-npm run schema:update
 ```
 
 5. Import data (if needed):
 ```bash
-npm run import:csv "path/to/data.csv"
 ```
 
 6. Start the development server:
@@ -112,7 +110,7 @@ ReView/
 - `npm run build` - Build for production
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
-- `npm run schema:update` - Update database schema
+- `` - Update database schema
 - `npm run import:csv` - Import data from CSV file
 
 ## Database Setup
