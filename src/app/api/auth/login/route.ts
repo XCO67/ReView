@@ -145,9 +145,27 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     safeError('Login error:', error);
-    const errorMessage = sanitizeError(error, process.env.NODE_ENV === 'production');
+    const errorMessage = sanitizeError(error, false); // Always show detailed errors for debugging
+    console.error('Login API Error:', errorMessage);
+    
+    // Check for specific error types
+    if (error instanceof Error) {
+      if (error.message.includes('SESSION_SECRET')) {
+        return NextResponse.json(
+          { error: 'Server configuration error: SESSION_SECRET is missing. Please contact administrator.' },
+          { status: 500 }
+        );
+      }
+      if (error.message.includes('DATABASE_URL') || error.message.includes('DB_HOST')) {
+        return NextResponse.json(
+          { error: 'Server configuration error: Database connection not configured. Please contact administrator.' },
+          { status: 500 }
+        );
+      }
+    }
+    
     return NextResponse.json(
-      { error: process.env.NODE_ENV === 'production' ? 'An error occurred during login' : errorMessage },
+      { error: `Login failed: ${errorMessage}` },
       { status: 500 }
     );
   }

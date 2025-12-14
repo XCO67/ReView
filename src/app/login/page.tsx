@@ -34,12 +34,16 @@ function LoginPageContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: identifier, password }),
+        credentials: "include", // Important: Include cookies in request
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "Login failed. Please try again.");
+        // Show detailed error message to help debug
+        const errorMsg = data.error || `Login failed (Status: ${response.status}). Please try again.`;
+        console.error('Login failed:', { status: response.status, error: data.error, data });
+        setError(errorMsg);
         setLoading(false);
         return;
       }

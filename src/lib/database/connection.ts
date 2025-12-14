@@ -62,8 +62,8 @@ export function getDb(): Pool {
     connectionString,
     max: Number(process.env.DB_POOL_MAX ?? '10'),
     idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS ?? '30000'),
-    connectionTimeoutMillis: Number(process.env.DB_CONN_TIMEOUT_MS ?? '10000'),
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    connectionTimeoutMillis: Number(process.env.DB_CONN_TIMEOUT_MS ?? '20000'), // Increased timeout for cloud DBs
+    ssl: process.env.NODE_ENV === 'production' || process.env.VERCEL ? { rejectUnauthorized: false } : false,
   });
 
   return pool;
