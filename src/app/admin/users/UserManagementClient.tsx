@@ -206,7 +206,7 @@ export default function UserManagementClient({ initialUsers, roles }: UserManage
                   </label>
                   <input
                     type={field.type}
-                    value={(formData as any)[field.key]}
+                    value={(formData[field.key as keyof typeof formData] as string) || ''}
                     onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
                     className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/20"
                   />

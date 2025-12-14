@@ -11,6 +11,10 @@ import { RotateCcw, Info, Settings, Eye, EyeOff } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { normalizeCountryName } from '@/lib/country-normalization';
 
+interface WindowWithReload extends Window {
+  __reloadWorldMap?: () => void;
+}
+
 export interface BaseCountryData {
   country: string;
   policyCount: number;
@@ -203,7 +207,7 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
 
       try {
         // Load world GeoJSON data through our API proxy to avoid CORS issues
-        let world: any = null;
+        let world: GeoJSON.FeatureCollection | GeoJSON.Topology | null = null;
         
         try {
           // First, try our API proxy endpoint (server-side fetch avoids CORS)
@@ -251,7 +255,7 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
             // Convert TopoJSON to GeoJSON using topojson-client
             const objectKey = Object.keys(world.objects)[0];
             if (objectKey) {
-              const geoJson = topojson.feature(world, world.objects[objectKey] as any);
+              const geoJson = topojson.feature(world as topojson.Topology, world.objects[objectKey] as topojson.GeometryCollection);
               if (geoJson && geoJson.features && geoJson.features.length > 0) {
                 world = geoJson;
               } else {
@@ -310,11 +314,11 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
           .attr('fill', 'transparent')
           .attr('pointer-events', 'all')
           .style('cursor', 'grab')
-          .on('mousedown', function(event) {
+          .on('mousedown', function(event: MouseEvent) {
             // Only drag if not clicking on a path
             const target = event.target as HTMLElement;
             if (target.tagName !== 'path' && target !== this) {
-              handleMouseDown(event as any);
+              handleMouseDown(event);
             }
           })
           .lower(); // Put behind everything
@@ -352,8 +356,8 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
           .data(features)
           .enter()
           .append('path')
-          .attr('d', (d: unknown) => path(d as any))
-          .attr('fill', (d: unknown) => {
+          .attr('d', (d: GeoJSON.Feature) => path(d))
+          .attr('fill', (d: GeoJSON.Feature) => {
             const data = d as { properties: { NAME?: string; NAME_LONG?: string; name?: string; ADMIN?: string } };
             const rawName = data.properties.NAME || data.properties.NAME_LONG || data.properties.name || data.properties.ADMIN;
             const normalizedGeoName = normalizeCountryName(rawName).toLowerCase();
@@ -364,7 +368,7 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
           .attr('stroke-width', 0.5)
           .style('cursor', 'pointer')
           .style('transition', 'fill 0.2s ease')
-          .on('mouseover', function(event, d: unknown) {
+          .on('mouseover', function(event: MouseEvent, d: GeoJSON.Feature) {
             const data = d as { properties: { NAME?: string; NAME_LONG?: string; name?: string; ADMIN?: string } };
             const rawName = data.properties.NAME || data.properties.NAME_LONG || data.properties.name || data.properties.ADMIN;
             const normalizedGeoName = normalizeCountryName(rawName).toLowerCase();
@@ -395,7 +399,7 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
             setTooltip(null);
             onCountryHover?.(null);
           })
-          .on('click', function(event, d: unknown) {
+          .on('click', function(event: MouseEvent, d: GeoJSON.Feature) {
             const data = d as { properties: { NAME?: string; NAME_LONG?: string; name?: string; ADMIN?: string } };
             event.stopPropagation();
             const rawName = data.properties.NAME || data.properties.NAME_LONG || data.properties.name || data.properties.ADMIN;
@@ -403,7 +407,7 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
             const countryData = countryDataMap.get(normalizedGeoName);
             onCountryClick?.(countryData || null);
           })
-          .on('mousedown', function(event) {
+          .on('mousedown', function(event: MouseEvent) {
             event.stopPropagation();
             isDraggingRef.current = false;
             setIsDragging(false);
@@ -416,7 +420,7 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
           
           // First, collect all potential labels with their positions and values
           interface LabelCandidate {
-            feature: any;
+            feature: GeoJSON.Feature;
             countryData: BaseCountryData;
             metricValue: number;
             centroid: [number, number];
@@ -426,7 +430,7 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
           
           const candidates: LabelCandidate[] = [];
           
-          features.forEach((feature: any) => {
+          features.forEach((feature: GeoJSON.Feature) => {
             const rawName = feature.properties?.NAME || feature.properties?.NAME_LONG || feature.properties?.name || feature.properties?.ADMIN;
             if (!rawName) return;
             
@@ -584,7 +588,8 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
     loadWorldMap();
     
     // Expose loadWorldMap for retry button
-    (window as any).__reloadWorldMap = () => {
+    const windowWithReload = window as WindowWithReload;
+    windowWithReload.__reloadWorldMap = () => {
       loadingRef.current = false;
       loadWorldMap();
     };
@@ -637,7 +642,7 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
         const mapGroup = svg.select('.map-group');
         if (mapGroup.node()) {
           mapGroup.selectAll('path')
-            .attr('d', (d: any) => path(d));
+            .attr('d', (d: unknown) => path(d as GeoJSON.Feature));
         }
       }
     };
@@ -683,8 +688,9 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
                       if (svgRef.current) {
                         d3.select(svgRef.current).selectAll('*').remove();
                         loadingRef.current = false;
-                        if ((window as any).__reloadWorldMap) {
-                          (window as any).__reloadWorldMap();
+                        const windowWithReload = window as WindowWithReload;
+                        if (windowWithReload.__reloadWorldMap) {
+                          windowWithReload.__reloadWorldMap();
                         }
                       }
                     }}
@@ -705,8 +711,9 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
                       if (svgRef.current) {
                         d3.select(svgRef.current).selectAll('*').remove();
                         loadingRef.current = false;
-                        if ((window as any).__reloadWorldMap) {
-                          (window as any).__reloadWorldMap();
+                        const windowWithReload = window as WindowWithReload;
+                        if (windowWithReload.__reloadWorldMap) {
+                          windowWithReload.__reloadWorldMap();
                         }
                       }
                     }}
@@ -834,8 +841,8 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
                     d3.select(svgRef.current).selectAll('*').remove();
                   }
                   // Force reload by calling the function directly
-                  if ((window as any).__reloadWorldMap) {
-                    (window as any).__reloadWorldMap();
+                  if (windowWithReload.__reloadWorldMap) {
+                    windowWithReload.__reloadWorldMap();
                   } else {
                     // Fallback: reload the page
                     window.location.reload();

@@ -89,16 +89,31 @@ export function ComparisonBarChart({ data, className }: ComparisonBarChartProps)
     }));
   }, [chartData, convertValue]);
 
-  if (chartData.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-96 text-muted-foreground">
-        No data available for comparison
-      </div>
-    );
-  }
+  // Calculate max for loss ratio Y-axis (must be before early return)
+  const maxLossRatio = useMemo(() => {
+    if (chartData.length === 0) return 100;
+    return Math.max(...chartData.map(d => d.lossRatio), 100) * 1.1;
+  }, [chartData]);
 
   // Clean black tooltip matching website design with color indicators
-  const CustomTooltip = ({ active, payload }: any) => {
+  interface TooltipPayloadItem {
+    payload: {
+      name: string;
+      premium: number;
+      paidClaims: number;
+      outstandingClaims: number;
+      lossRatio: number;
+      premiumConverted?: number;
+      paidClaimsConverted?: number;
+      outstandingClaimsConverted?: number;
+    };
+  }
+  
+  interface TooltipProps {
+    active?: boolean;
+    payload?: TooltipPayloadItem[];
+  }
+  const CustomTooltip = ({ active, payload }: TooltipProps) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       // Use converted values if available, otherwise use original
@@ -155,11 +170,13 @@ export function ComparisonBarChart({ data, className }: ComparisonBarChartProps)
     return null;
   };
 
-  // Calculate max for loss ratio Y-axis
-  const maxLossRatio = useMemo(() => {
-    if (chartData.length === 0) return 100;
-    return Math.max(...chartData.map(d => d.lossRatio), 100) * 1.1;
-  }, [chartData]);
+  if (chartData.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-96 text-muted-foreground">
+        No data available for comparison
+      </div>
+    );
+  }
 
   return (
     <div className={className}>

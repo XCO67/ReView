@@ -25,12 +25,12 @@ interface ChartDataPoint {
 const MAX_DOTS = 5000;
 
 // Debounce function for tooltip updates
-function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T {
+function debounce<T extends (...args: unknown[]) => void>(func: T, wait: number): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout | null = null;
-  return ((...args: any[]) => {
+  return ((...args: Parameters<T>) => {
     if (timeout) clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
-  }) as T;
+  });
 }
 
 export function QuadrantChart({ data, className, noCard = false }: QuadrantChartProps) {
@@ -414,7 +414,7 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
               }
 
               if (nearest) {
-                updateTooltip(event as any, nearest);
+                updateTooltip(event as MouseEvent, nearest);
               } else {
                 tooltip.style('opacity', 0);
               }
@@ -446,11 +446,11 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
           .attr('stroke', 'white')
           .attr('stroke-width', 0.5)
           .style('cursor', 'pointer')
-          .on('mouseover', function(event, d) {
+          .on('mouseover', function(event: MouseEvent, d: ChartDataPoint) {
             d3.select(this)
               .attr('r', 5)
               .attr('opacity', 1);
-            updateTooltip(event as any, d);
+            updateTooltip(event, d);
           })
           .on('mouseout', function() {
             d3.select(this)

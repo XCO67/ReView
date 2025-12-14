@@ -191,7 +191,7 @@ export function SearchableSelect({
                     </div>
                   ) : (
                     <div className="p-4 text-center text-sm text-muted-foreground">
-                      No results found for "{searchQuery}"
+                      No results found for &quot;{searchQuery}&quot;
                     </div>
                   )}
                 </div>

@@ -46,7 +46,7 @@ const navigation = [
 ];
 
 // Overview page removed - functionality moved to dashboard
-const overviewPages: { name: string; href: string; icon: any }[] = [];
+const overviewPages: { name: string; href: string; icon: React.ComponentType<{ className?: string }> }[] = [];
 
 const analyticsPages = [
   { name: "Comparison", href: "/analytics", icon: BarChart3 },

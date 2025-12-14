@@ -187,7 +187,7 @@ export function matchesState(
     // Check if territory matches any variation (comprehensive matching)
     for (const variation of stateVariations) {
       // Remove UAE suffix from territory for comparison
-      let cleanTerritory = territoryLower
+      const cleanTerritory: string = territoryLower
         .replace(/[,;]\s*uae$/i, '')
         .replace(/[,;]\s*united arab emirates$/i, '')
         .replace(/\s*-\s*uae$/i, '')

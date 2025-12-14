@@ -244,7 +244,7 @@ export async function GET(req: NextRequest) {
         const osLoss = record.osClaimKD || 0;
         const incurred = record.incClaimKD || (paidClaims + osLoss);
         // Use original country name from CSV if available, otherwise use normalized
-        const originalCountryName = (record as any).originalCountryName || record.countryName;
+        const originalCountryName = (record as ReinsuranceData & { originalCountryName?: string }).originalCountryName || record.countryName || '';
         return {
           uy: record.uy,
           srl: record.srl,

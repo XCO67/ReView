@@ -97,12 +97,30 @@ export default function PerformancePage() {
       try {
         const params = new URLSearchParams();
         params.set('type', entityType);
-        if (filters.class) params.set('class', filters.class);
-        if (filters.subClass) params.set('subClass', filters.subClass);
-        if (filters.extType) params.set('extType', filters.extType);
-        if (filters.country) params.set('country', filters.country);
-        if (filters.hub) params.set('hub', filters.hub);
-        if (filters.region) params.set('region', filters.region);
+        if (filters.class) {
+          const classArray = Array.isArray(filters.class) ? filters.class : [filters.class];
+          classArray.forEach(c => params.append('class', c));
+        }
+        if (filters.subClass) {
+          const subClassArray = Array.isArray(filters.subClass) ? filters.subClass : [filters.subClass];
+          subClassArray.forEach(s => params.append('subClass', s));
+        }
+        if (filters.extType) {
+          const extTypeArray = Array.isArray(filters.extType) ? filters.extType : [filters.extType];
+          extTypeArray.forEach(e => params.append('extType', e));
+        }
+        if (filters.country) {
+          const countryArray = Array.isArray(filters.country) ? filters.country : [filters.country];
+          countryArray.forEach(c => params.append('country', c));
+        }
+        if (filters.hub) {
+          const hubArray = Array.isArray(filters.hub) ? filters.hub : [filters.hub];
+          hubArray.forEach(h => params.append('hub', h));
+        }
+        if (filters.region) {
+          const regionArray = Array.isArray(filters.region) ? filters.region : [filters.region];
+          regionArray.forEach(r => params.append('region', r));
+        }
         
         const response = await fetch(`/api/analytics/performance/entities?${params.toString()}`);
         if (response.ok) {
@@ -122,12 +140,30 @@ export default function PerformancePage() {
     const loadPolicies = async () => {
       try {
         const params = new URLSearchParams();
-        if (filters.class) params.set('class', filters.class);
-        if (filters.subClass) params.set('subClass', filters.subClass);
-        if (filters.extType) params.set('extType', filters.extType);
-        if (filters.country) params.set('country', filters.country);
-        if (filters.hub) params.set('hub', filters.hub);
-        if (filters.region) params.set('region', filters.region);
+        if (filters.class) {
+          const classArray = Array.isArray(filters.class) ? filters.class : [filters.class];
+          classArray.forEach(c => params.append('class', c));
+        }
+        if (filters.subClass) {
+          const subClassArray = Array.isArray(filters.subClass) ? filters.subClass : [filters.subClass];
+          subClassArray.forEach(s => params.append('subClass', s));
+        }
+        if (filters.extType) {
+          const extTypeArray = Array.isArray(filters.extType) ? filters.extType : [filters.extType];
+          extTypeArray.forEach(e => params.append('extType', e));
+        }
+        if (filters.country) {
+          const countryArray = Array.isArray(filters.country) ? filters.country : [filters.country];
+          countryArray.forEach(c => params.append('country', c));
+        }
+        if (filters.hub) {
+          const hubArray = Array.isArray(filters.hub) ? filters.hub : [filters.hub];
+          hubArray.forEach(h => params.append('hub', h));
+        }
+        if (filters.region) {
+          const regionArray = Array.isArray(filters.region) ? filters.region : [filters.region];
+          regionArray.forEach(r => params.append('region', r));
+        }
         
         const response = await fetch(`/api/analytics/performance/policies?${params.toString()}`);
         if (response.ok) {
@@ -178,13 +214,31 @@ export default function PerformancePage() {
         if (selectedYears.length > 0) {
           selectedYears.forEach(year => params.append('years', String(year)));
         }
-        if (filters.class) params.set('class', filters.class);
-        if (filters.subClass) params.set('subClass', filters.subClass);
-        if (filters.extType) params.set('extType', filters.extType);
+        if (filters.class) {
+          const classArray = Array.isArray(filters.class) ? filters.class : [filters.class];
+          classArray.forEach(c => params.append('class', c));
+        }
+        if (filters.subClass) {
+          const subClassArray = Array.isArray(filters.subClass) ? filters.subClass : [filters.subClass];
+          subClassArray.forEach(s => params.append('subClass', s));
+        }
+        if (filters.extType) {
+          const extTypeArray = Array.isArray(filters.extType) ? filters.extType : [filters.extType];
+          extTypeArray.forEach(e => params.append('extType', e));
+        }
         if (policyFilter !== 'all') params.set('policy', policyFilter);
-        if (filters.country) params.set('country', filters.country);
-        if (filters.hub) params.set('hub', filters.hub);
-        if (filters.region) params.set('region', filters.region);
+        if (filters.country) {
+          const countryArray = Array.isArray(filters.country) ? filters.country : [filters.country];
+          countryArray.forEach(c => params.append('country', c));
+        }
+        if (filters.hub) {
+          const hubArray = Array.isArray(filters.hub) ? filters.hub : [filters.hub];
+          hubArray.forEach(h => params.append('hub', h));
+        }
+        if (filters.region) {
+          const regionArray = Array.isArray(filters.region) ? filters.region : [filters.region];
+          regionArray.forEach(r => params.append('region', r));
+        }
 
         const response = await fetch(`/api/analytics/performance?${params.toString()}`);
         if (response.ok) {
@@ -214,12 +268,30 @@ export default function PerformancePage() {
         try {
           const params = new URLSearchParams();
           params.set('policy', policyFilter);
-          if (filters.class) params.set('class', filters.class);
-          if (filters.subClass) params.set('subClass', filters.subClass);
-          if (filters.extType) params.set('extType', filters.extType);
-          if (filters.country) params.set('country', filters.country);
-          if (filters.hub) params.set('hub', filters.hub);
-          if (filters.region) params.set('region', filters.region);
+          if (filters.class) {
+            const classArray = Array.isArray(filters.class) ? filters.class : [filters.class];
+            classArray.forEach(c => params.append('class', c));
+          }
+          if (filters.subClass) {
+            const subClassArray = Array.isArray(filters.subClass) ? filters.subClass : [filters.subClass];
+            subClassArray.forEach(s => params.append('subClass', s));
+          }
+          if (filters.extType) {
+            const extTypeArray = Array.isArray(filters.extType) ? filters.extType : [filters.extType];
+            extTypeArray.forEach(e => params.append('extType', e));
+          }
+          if (filters.country) {
+            const countryArray = Array.isArray(filters.country) ? filters.country : [filters.country];
+            countryArray.forEach(c => params.append('country', c));
+          }
+          if (filters.hub) {
+            const hubArray = Array.isArray(filters.hub) ? filters.hub : [filters.hub];
+            hubArray.forEach(h => params.append('hub', h));
+          }
+          if (filters.region) {
+            const regionArray = Array.isArray(filters.region) ? filters.region : [filters.region];
+            regionArray.forEach(r => params.append('region', r));
+          }
           
           const response = await fetch(`/api/analytics/performance/policy-brokers?${params.toString()}`);
           if (response.ok) {

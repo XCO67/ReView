@@ -80,7 +80,19 @@ export function LossRatioBarChart({ data, className }: LossRatioBarChartProps) {
     return '#10b981'; // green
   };
 
-  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; payload: any }>; label?: string }) => {
+  interface TooltipPayload {
+    name: string;
+    value: number;
+    payload: {
+      uy: string;
+      premium: number;
+      incurredClaims: number;
+      paidClaims: number;
+      osClaims: number;
+      lossRatio: number;
+    };
+  }
+  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: TooltipPayload[]; label?: string }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (

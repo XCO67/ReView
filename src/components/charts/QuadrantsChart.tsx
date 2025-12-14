@@ -28,7 +28,13 @@ interface ChartDataPoint {
 type AggregationType = 'year' | 'month';
 
 // Custom background component for quadrants
-const QuadrantBackground = ({ xDomain, yDomain, width, height }: any) => {
+interface QuadrantBackgroundProps {
+  xDomain?: [number, number];
+  yDomain?: [number, number];
+  width?: number;
+  height?: number;
+}
+const QuadrantBackground = ({ xDomain, yDomain, width, height }: QuadrantBackgroundProps) => {
   if (!xDomain || !yDomain || !width || !height) return null;
   
   const midX = width / 2;
@@ -170,7 +176,13 @@ export function QuadrantsChart({ data, className }: QuadrantsChartProps) {
   }, [chartData]);
 
   // Custom tooltip
-  const CustomTooltip = ({ active, payload }: any) => {
+  interface TooltipProps {
+    active?: boolean;
+    payload?: Array<{
+      payload: ChartDataPoint;
+    }>;
+  }
+  const CustomTooltip = ({ active, payload }: TooltipProps) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload as ChartDataPoint;
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

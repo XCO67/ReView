@@ -32,7 +32,7 @@ export function sanitizeError(error: unknown, isProduction: boolean): string {
 /**
  * Remove sensitive data from objects before logging
  */
-export function sanitizeForLogging(data: any): any {
+export function sanitizeForLogging(data: unknown): unknown {
   if (!data || typeof data !== 'object') {
     return data;
   }
@@ -53,14 +53,16 @@ export function sanitizeForLogging(data: any): any {
     'passwordHash',
   ];
   
-  const sanitized = Array.isArray(data) ? [...data] : { ...data };
+  const sanitized: unknown = Array.isArray(data) ? [...data] : { ...data };
   
-  for (const key in sanitized) {
-    const lowerKey = key.toLowerCase();
-    if (sensitiveKeys.some(sk => lowerKey.includes(sk))) {
-      sanitized[key] = '[REDACTED]';
-    } else if (typeof sanitized[key] === 'object' && sanitized[key] !== null) {
-      sanitized[key] = sanitizeForLogging(sanitized[key]);
+  if (typeof sanitized === 'object' && sanitized !== null) {
+    for (const key in sanitized as Record<string, unknown>) {
+      const lowerKey = key.toLowerCase();
+      if (sensitiveKeys.some(sk => lowerKey.includes(sk))) {
+        (sanitized as Record<string, unknown>)[key] = '[REDACTED]';
+      } else if (typeof (sanitized as Record<string, unknown>)[key] === 'object' && (sanitized as Record<string, unknown>)[key] !== null) {
+        (sanitized as Record<string, unknown>)[key] = sanitizeForLogging((sanitized as Record<string, unknown>)[key]);
+      }
     }
   }
   
@@ -70,7 +72,7 @@ export function sanitizeForLogging(data: any): any {
 /**
  * Safe console.log that sanitizes sensitive data
  */
-export function safeLog(message: string, data?: any): void {
+export function safeLog(message: string, data?: unknown): void {
   if (process.env.NODE_ENV === 'production') {
     // In production, don't log sensitive information
     return;
