@@ -583,16 +583,16 @@ export default function ClientOverviewPage() {
   // Sync universal filters to internal filter state
   useEffect(() => {
     setFilters({
-      country: universalFilters.country ? [universalFilters.country] : [],
+      country: Array.isArray(universalFilters.country) ? universalFilters.country : (universalFilters.country ? [universalFilters.country] : []),
       hub: universalFilters.hub ? [universalFilters.hub] : [],
       region: universalFilters.region ? [universalFilters.region] : [],
       cedant: universalFilters.cedant ? [universalFilters.cedant] : [],
       broker: universalFilters.broker ? [universalFilters.broker] : [],
       insured: universalFilters.policyName ? [universalFilters.policyName] : [],
       year: universalFilters.year ? [parseInt(universalFilters.year)] : [],
-      extType: universalFilters.extType ? [universalFilters.extType] : [],
-      class: universalFilters.class ? [universalFilters.class] : [],
-      subClass: universalFilters.subClass ? [universalFilters.subClass] : []
+      extType: Array.isArray(universalFilters.extType) ? universalFilters.extType : (universalFilters.extType ? [universalFilters.extType] : []),
+      class: Array.isArray(universalFilters.class) ? universalFilters.class : (universalFilters.class ? [universalFilters.class] : []),
+      subClass: Array.isArray(universalFilters.subClass) ? universalFilters.subClass : (universalFilters.subClass ? [universalFilters.subClass] : [])
     });
   }, [universalFilters]);
 

@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     // If allowedClasses is null (admin), no additional filtering needed
     // If allowedClasses is empty array, return empty results
     // Otherwise, filter by allowed classes
-    const effectiveClassFilter: string | null = classFilter;
+    const effectiveClassFilter: string | string[] | undefined = classFilter;
     if (allowedClasses !== null && allowedClasses !== undefined) {
       if (allowedClasses.length === 0) {
         // User has no allowed classes - return empty results

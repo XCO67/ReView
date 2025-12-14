@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     const data = await loadUWData();
     
     // Filter by role if needed
-    let filteredData = filterByRole(data, allowedClasses);
+    let filteredData = filterByRole(data, allowedClasses ?? undefined);
     
     // Filter by entity
     filteredData = filteredData.filter(record => {

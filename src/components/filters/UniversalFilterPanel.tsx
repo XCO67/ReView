@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, SlidersHorizontal, Calendar, Building2, Globe, Users, 
   MapPin, Briefcase, FileText, ChevronDown, ChevronUp,
-  Layers, Office, Tag, FolderTree, Clock, User
+  Layers, Tag, FolderTree, Clock, User
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CardTitle } from '@/components/ui/card';
@@ -70,8 +70,8 @@ export function UniversalFilterPanel({
     
     // Subclasses filtered by selected class
     const allSubClasses = [...new Set(data.map(d => d.subClass).filter(Boolean))].sort() as string[];
-    const subClasses = filters.class
-      ? [...new Set(data.filter(d => d.className === filters.class).map(d => d.subClass).filter(Boolean))].sort() as string[]
+    const subClasses = filters.class && filters.class.length > 0
+      ? [...new Set(data.filter(d => d.className && filters.class?.includes(d.className)).map(d => d.subClass).filter(Boolean))].sort() as string[]
       : allSubClasses;
     
     const hubs = [...new Set(data.map(d => d.hub).filter(Boolean))].sort();
@@ -140,7 +140,7 @@ export function UniversalFilterPanel({
     setExpandedSections(newExpanded);
   };
 
-  const handleFilterChange = (key: keyof UniversalFilterState, value: string | number | null) => {
+  const handleFilterChange = (key: keyof UniversalFilterState, value: string | number | string[] | null) => {
     const newFilters = { ...filters, [key]: value };
     // Clear subclass when class changes
     if (key === 'class') {
@@ -317,28 +317,28 @@ export function UniversalFilterPanel({
                     />
                     <SearchableSelect
                       label="Extract Type"
-                      value={filters.extType}
+                      value={filters.extType && filters.extType.length > 0 ? filters.extType[0] : null}
                       options={filterOptions.extTypes}
-                      onChange={(val) => handleFilterChange('extType', val)}
+                      onChange={(val) => handleFilterChange('extType', val ? [val] : null)}
                     />
                     <SearchableSelect
                       label="Policy Nature"
-                      value={filters.policyNature}
+                      value={filters.policyNature && filters.policyNature.length > 0 ? filters.policyNature[0] : null}
                       options={filterOptions.policyNatures}
-                      onChange={(val) => handleFilterChange('policyNature', val)}
+                      onChange={(val) => handleFilterChange('policyNature', val ? [val] : null)}
                     />
                     <SearchableSelect
                       label="Class"
-                      value={filters.class}
+                      value={filters.class && filters.class.length > 0 ? filters.class[0] : null}
                       options={filterOptions.classes}
-                      onChange={(val) => handleFilterChange('class', val)}
+                      onChange={(val) => handleFilterChange('class', val ? [val] : null)}
                     />
-                    {filters.class ? (
+                    {filters.class && filters.class.length > 0 ? (
                       <SearchableSelect
                         label="Subclass"
-                        value={filters.subClass}
+                        value={filters.subClass && filters.subClass.length > 0 ? filters.subClass[0] : null}
                         options={filterOptions.subClasses}
-                        onChange={(val) => handleFilterChange('subClass', val)}
+                        onChange={(val) => handleFilterChange('subClass', val ? [val] : null)}
                       />
                     ) : (
                       <div className="space-y-2">
@@ -372,9 +372,9 @@ export function UniversalFilterPanel({
                     />
                     <SearchableSelect
                       label="Country"
-                      value={filters.country}
+                      value={filters.country && filters.country.length > 0 ? filters.country[0] : null}
                       options={filterOptions.countries}
-                      onChange={(val) => handleFilterChange('country', val)}
+                      onChange={(val) => handleFilterChange('country', val ? [val] : null)}
                     />
                   </FilterSection>
 

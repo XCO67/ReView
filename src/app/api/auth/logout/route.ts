@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     await recordAuditEvent(
       session.userId,
       'logout',
-      request.headers.get('x-forwarded-for') ?? request.ip ?? 'unknown'
+      request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip') ?? 'unknown'
     );
   }
 

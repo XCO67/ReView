@@ -86,10 +86,13 @@ export function LossRatioBarChart({ data, className }: LossRatioBarChartProps) {
     payload: {
       uy: string;
       premium: number;
+      incurred: number;
       incurredClaims: number;
       paidClaims: number;
       osClaims: number;
       lossRatio: number;
+      paidClaimsPct: number;
+      osClaimsPct: number;
     };
   }
   const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: TooltipPayload[]; label?: string }) => {
@@ -111,7 +114,7 @@ export function LossRatioBarChart({ data, className }: LossRatioBarChartProps) {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Incurred:</span>
-              <span className="font-medium" style={{ color: METRIC_COLORS.incurredClaims }}>{formatCurrencyNumeric(data.incurred)}</span>
+              <span className="font-medium" style={{ color: METRIC_COLORS.incurredClaims }}>{formatCurrencyNumeric(data.incurred || data.incurredClaims)}</span>
             </div>
             <div className="border-t border-muted pt-2 mt-2">
               <p className="text-xs font-semibold text-muted-foreground mb-2">Breakdown:</p>

@@ -128,7 +128,7 @@ export async function GET(req: NextRequest) {
 
       const renewalYear =
         extractYear(record.year) ??
-        extractYear(record.renYear) ??
+        extractYear((record as { renewalYear?: string | number }).renewalYear ? String((record as { renewalYear?: string | number }).renewalYear) : undefined) ??
         extractYear(record.normalizedYear);
       if (renewalYear !== null) {
         const mapKey = `${key}-${renewalYear}`;
@@ -167,7 +167,6 @@ export async function GET(req: NextRequest) {
 
     filteredData.forEach(record => {
       if (record.countryName) {
-        const originalCountryName = record.countryName; // Preserve original country name from CSV
         const normalizedName = normalizeCountryName(record.countryName);
         if (!countryGroups[normalizedName]) {
           countryGroups[normalizedName] = [];
@@ -175,7 +174,6 @@ export async function GET(req: NextRequest) {
         countryGroups[normalizedName].push({
           ...record,
           countryName: normalizedName, // Use normalized for grouping
-          originalCountryName, // Preserve original for display
         });
 
         const yearNum = extractYear(record.uy);
@@ -244,7 +242,7 @@ export async function GET(req: NextRequest) {
         const osLoss = record.osClaimKD || 0;
         const incurred = record.incClaimKD || (paidClaims + osLoss);
         // Use original country name from CSV if available, otherwise use normalized
-        const originalCountryName = (record as ReinsuranceData & { originalCountryName?: string }).originalCountryName || record.countryName || '';
+        const originalCountryName = record.countryName || '';
         return {
           uy: record.uy,
           srl: record.srl,

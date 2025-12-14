@@ -207,7 +207,7 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
 
       try {
         // Load world GeoJSON data through our API proxy to avoid CORS issues
-        let world: GeoJSON.FeatureCollection | GeoJSON.Topology | null = null;
+        let world: GeoJSON.FeatureCollection | { type: 'Topology'; objects: Record<string, unknown> } | null = null;
         
         try {
           // First, try our API proxy endpoint (server-side fetch avoids CORS)
@@ -227,8 +227,9 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
           
           for (const source of sources) {
             try {
-              world = await d3.json(source);
-              if (world) {
+              const loaded = await d3.json(source);
+              if (loaded) {
+                world = loaded as GeoJSON.FeatureCollection | { type: 'Topology'; objects: Record<string, unknown> };
                 break;
               }
             } catch (err) {
@@ -249,24 +250,38 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
         }
         
         // Validate and convert the structure
-        if (world && typeof world === 'object') {
+        if (world && typeof world === 'object' && 'type' in world) {
           // Handle TopoJSON format (common in world-atlas)
-          if (world.type === 'Topology' && world.objects) {
+          if (world.type === 'Topology' && 'objects' in world && world.objects) {
             // Convert TopoJSON to GeoJSON using topojson-client
             const objectKey = Object.keys(world.objects)[0];
             if (objectKey) {
-              const geoJson = topojson.feature(world as topojson.Topology, world.objects[objectKey] as topojson.GeometryCollection);
-              if (geoJson && geoJson.features && geoJson.features.length > 0) {
-                world = geoJson;
+              const geoJson = topojson.feature(world as unknown as Parameters<typeof topojson.feature>[0], world.objects[objectKey] as Parameters<typeof topojson.feature>[1]);
+              if (geoJson) {
+                // topojson.feature returns a Feature or FeatureCollection
+                // If it's a single Feature, wrap it in a FeatureCollection
+                if ('features' in geoJson && geoJson.features && geoJson.features.length > 0) {
+                  world = geoJson as GeoJSON.FeatureCollection;
+                } else if ('geometry' in geoJson) {
+                  // Single feature, wrap it
+                  world = {
+                    type: 'FeatureCollection',
+                    features: [geoJson as GeoJSON.Feature]
+                  };
+                } else {
+                  throw new Error('TopoJSON conversion failed');
+                }
               } else {
                 throw new Error('TopoJSON conversion failed');
               }
             }
-          } else if (world.type === 'FeatureCollection' && world.features) {
+          } else if (world.type === 'FeatureCollection' && 'features' in world && world.features) {
             // Already GeoJSON format - validate it has features
             if (!Array.isArray(world.features) || world.features.length === 0) {
               throw new Error('GeoJSON has no features');
             }
+            // Ensure world is typed as FeatureCollection
+            world = world as GeoJSON.FeatureCollection;
           } else {
             throw new Error('Invalid data structure');
           }
@@ -274,10 +289,12 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
           throw new Error('Invalid world data');
         }
         
-        // Final validation
-        if (!world || !world.features || world.features.length === 0) {
+        // Final validation - at this point world should be FeatureCollection
+        // After processing, world is guaranteed to be FeatureCollection
+        if (!world || world.type !== 'FeatureCollection' || !('features' in world) || !world.features || world.features.length === 0) {
           throw new Error('World map data is empty');
         }
+        const finalWorld = world as GeoJSON.FeatureCollection;
 
         if (!isMounted || !svgRef.current) return;
 
@@ -314,10 +331,10 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
           .attr('fill', 'transparent')
           .attr('pointer-events', 'all')
           .style('cursor', 'grab')
-          .on('mousedown', function(event: MouseEvent) {
+          .on('mousedown', function(this: SVGRectElement, event: MouseEvent) {
             // Only drag if not clicking on a path
             const target = event.target as HTMLElement;
-            if (target.tagName !== 'path' && target !== this) {
+            if (target.tagName !== 'path') {
               handleMouseDown(event);
             }
           })
@@ -344,10 +361,10 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
         };
 
         // Ensure we have features array
-        const features = world.features || [];
+        const features = finalWorld.features || [];
         
         if (!features || features.length === 0) {
-          console.error('No features found in world map data', world);
+          console.error('No features found in world map data', finalWorld);
           throw new Error('World map data is empty - no features found');
         }
 
@@ -841,6 +858,7 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
                     d3.select(svgRef.current).selectAll('*').remove();
                   }
                   // Force reload by calling the function directly
+                  const windowWithReload = window as WindowWithReload;
                   if (windowWithReload.__reloadWorldMap) {
                     windowWithReload.__reloadWorldMap();
                   } else {

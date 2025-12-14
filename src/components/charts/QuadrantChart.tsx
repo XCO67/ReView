@@ -25,12 +25,12 @@ interface ChartDataPoint {
 const MAX_DOTS = 5000;
 
 // Debounce function for tooltip updates
-function debounce<T extends (...args: unknown[]) => void>(func: T, wait: number): (...args: Parameters<T>) => void {
+function debounce<T extends (...args: unknown[]) => void>(func: T, wait: number): T {
   let timeout: NodeJS.Timeout | null = null;
   return ((...args: Parameters<T>) => {
     if (timeout) clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
-  });
+  }) as T;
 }
 
 export function QuadrantChart({ data, className, noCard = false }: QuadrantChartProps) {
@@ -82,9 +82,11 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
   // Use canvas for large datasets (better performance)
   const useCanvas = chartData.length > 2000;
 
-  // Debounced tooltip update
-  const updateTooltip = useCallback(
-    debounce((event: MouseEvent, d: ChartDataPoint) => {
+  // Update tooltip implementation (debounced)
+  const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const updateTooltip = useCallback((event: MouseEvent, d: ChartDataPoint) => {
+    if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
+    tooltipTimeoutRef.current = setTimeout(() => {
       if (!tooltipRef.current) return;
       const tooltip = d3.select(tooltipRef.current);
       tooltip
@@ -105,9 +107,8 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
         `)
         .style('left', `${event.pageX + 10}px`)
         .style('top', `${event.pageY - 10}px`);
-    }, 50),
-    [formatCurrencyNumeric, convertValue]
-  );
+    }, 16);
+  }, [formatCurrencyNumeric, convertValue]);
 
   useEffect(() => {
     if (!svgRef.current || chartData.length === 0) return;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MonthlyOverviewContent } from '../monthly-overview/page';
@@ -29,7 +29,7 @@ const TAB_CONFIG = [
 
 type TabValue = (typeof TAB_CONFIG)[number]['value'];
 
-export default function OverviewHubPage() {
+function OverviewHubContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -95,6 +95,14 @@ export default function OverviewHubPage() {
 
       <ChatBot />
     </div>
+  );
+}
+
+export default function OverviewHubPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>}>
+      <OverviewHubContent />
+    </Suspense>
   );
 }
 

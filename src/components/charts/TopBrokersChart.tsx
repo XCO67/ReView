@@ -36,8 +36,8 @@ export function TopBrokersList({ data, className }: TopBrokersListProps) {
         });
       }
       const entry = brokerMap.get(broker)!;
-      entry.premium += record.grossUWPrem;
-      entry.incurredClaims += record.grossPaidClaims + record.grossOsLoss;
+      entry.premium += record.grossUWPrem ?? 0;
+      entry.incurredClaims += (record.grossPaidClaims ?? 0) + (record.grossOsLoss ?? 0);
       entry.accountCount += 1;
     });
 

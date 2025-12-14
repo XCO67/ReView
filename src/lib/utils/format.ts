@@ -2,6 +2,8 @@
  * Formatting utilities for the reinsurance dashboard
  */
 
+import { useCurrency } from '@/contexts/CurrencyContext';
+
 /**
  * Format a number as currency (KWD or USD) with thousand separators
  * This is a hook version that uses the currency context
