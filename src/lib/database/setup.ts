@@ -71,7 +71,7 @@ export async function setupDefaultAdmin() {
   const adminEmail = process.env.DEFAULT_ADMIN_EMAIL ?? 'admin@kuwaitre.com';
   const adminPassword = resolveCredential({
     value: process.env.DEFAULT_ADMIN_PASSWORD,
-    fallback: 'ChangeMe123!',
+    fallback: 'KuwaitRe2024!Secure',
     name: 'DEFAULT_ADMIN_PASSWORD',
   });
 
