@@ -74,15 +74,7 @@ DEFAULT_ADMIN_EMAIL=admin@example.com
 DEFAULT_ADMIN_PASSWORD=secure_password
 ```
 
-4. Set up the database:
-```bash
-```
-
-5. Import data (if needed):
-```bash
-```
-
-6. Start the development server:
+4. Start the development server:
 ```bash
 npm run dev
 ```
