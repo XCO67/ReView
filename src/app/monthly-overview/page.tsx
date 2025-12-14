@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { 
   Select, 
   SelectContent, 
@@ -12,13 +13,16 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { 
-  Calendar,
   Minus,
   Loader2,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Download
 } from "lucide-react";
 import { formatKD, formatKDNumeric, formatPct, formatNumber } from "@/lib/format";
+import { useFormatCurrency } from '@/lib/format-currency';
+import { CurrencyLabel } from '@/components/currency/CurrencyLabel';
+import { useUserRoles } from '@/hooks/useUserRoles';
 import { ReinsuranceData } from "@/lib/schema";
 import { aggregateKPIs } from "@/lib/kpi";
 
@@ -51,18 +55,188 @@ interface MonthlyOverviewData {
   };
 }
 
-export default function MonthlyOverviewPage() {
+export function MonthlyOverviewContent() {
+  const { formatCurrency, formatCurrencyNumeric } = useFormatCurrency();
+  const { isAdmin } = useUserRoles();
   const [data, setData] = useState<ReinsuranceData[]>([]);
   const [monthlyData, setMonthlyData] = useState<MonthlyOverviewData | null>(null);
-  const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [selectedInceptionYear, setSelectedInceptionYear] = useState<string>('all');
+  const [selectedQuarter, setSelectedQuarter] = useState<string>('all');
+  const [selectedLoc, setSelectedLoc] = useState<string>('all');
+  const [selectedExtType, setSelectedExtType] = useState<string>('all');
+  const [selectedClass, setSelectedClass] = useState<string>('all');
+  const [selectedSubClass, setSelectedSubClass] = useState<string>('all');
   const [loading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  // Get available years from data
-  const availableYears = useMemo(() => {
-    const years = [...new Set(data.map(d => d.uy).filter(Boolean))].sort();
-    return years;
+  const availableInceptionYears = useMemo(() => {
+    const years = [...new Set(data.map(d => d.inceptionYear).filter(Boolean))] as number[];
+    return years.sort((a, b) => a - b).map(String);
   }, [data]);
+
+  const availableQuarters = useMemo(() => {
+    const quarters = new Set<string>();
+    data.forEach((record) => {
+      if (record.inceptionQuarter) {
+        // inceptionQuarter is a number (1-4), convert to Q1, Q2, Q3, Q4
+        const qNum = typeof record.inceptionQuarter === 'number' 
+          ? record.inceptionQuarter 
+          : parseInt(String(record.inceptionQuarter), 10);
+        if (qNum >= 1 && qNum <= 4) {
+          quarters.add(`Q${qNum}`);
+        }
+      }
+    });
+    return Array.from(quarters).sort();
+  }, [data]);
+
+  const availableLocs = useMemo(() => {
+    const locs = new Set<string>();
+    data.forEach((record) => {
+      if (record.loc) locs.add(record.loc);
+    });
+    return Array.from(locs).sort();
+  }, [data]);
+
+  const availableExtTypes = useMemo(() => {
+    const extTypes = new Set<string>();
+    data.forEach((record) => {
+      if (record.extType) extTypes.add(record.extType);
+    });
+    return Array.from(extTypes).sort();
+  }, [data]);
+
+  const availableClasses = useMemo(() => {
+    const classes = new Set<string>();
+    data.forEach((record) => {
+      if (record.className) classes.add(record.className);
+    });
+    return Array.from(classes).sort();
+  }, [data]);
+
+  // Available subclasses filtered by selected class
+  const availableSubClasses = useMemo(() => {
+    const subClasses = new Set<string>();
+    data.forEach((record) => {
+      if (record.subClass && (selectedClass === 'all' || record.className === selectedClass)) {
+        subClasses.add(record.subClass);
+      }
+    });
+    return Array.from(subClasses).sort();
+  }, [data, selectedClass]);
+
+  const FiltersBar = () => (
+    <div className="border-b bg-muted/30">
+      <div className="container mx-auto px-4 py-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Inception Year</label>
+            <Select value={selectedInceptionYear} onValueChange={setSelectedInceptionYear}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="All Inception Years" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Inception Years</SelectItem>
+                {availableInceptionYears.map((year) => (
+                  <SelectItem key={year} value={year}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Inception Quarter</label>
+            <Select value={selectedQuarter} onValueChange={setSelectedQuarter}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="All Quarters" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Quarters</SelectItem>
+                {availableQuarters.map((quarter) => (
+                  <SelectItem key={quarter} value={quarter}>
+                    {quarter}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Loc</label>
+            <Select value={selectedLoc} onValueChange={setSelectedLoc}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="All Loc" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Loc</SelectItem>
+                {availableLocs.map((loc) => (
+                  <SelectItem key={loc} value={loc}>
+                    {loc}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Ext Type</label>
+            <Select value={selectedExtType} onValueChange={setSelectedExtType}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="All Ext Types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Ext Types</SelectItem>
+                {availableExtTypes.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Class</label>
+            <Select value={selectedClass} onValueChange={(value) => {
+              setSelectedClass(value);
+              setSelectedSubClass('all'); // Clear subclass when class changes
+            }}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="All Classes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Classes</SelectItem>
+                {availableClasses.map((cls) => (
+                  <SelectItem key={cls} value={cls}>
+                    {cls}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Subclass</label>
+            <Select value={selectedSubClass} onValueChange={setSelectedSubClass} disabled={selectedClass === 'all'}>
+              <SelectTrigger className="h-9 disabled:opacity-50">
+                <SelectValue placeholder={selectedClass === 'all' ? "Select class first" : "All Subclasses"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Subclasses</SelectItem>
+                {availableSubClasses.map((subCls) => (
+                  <SelectItem key={subCls} value={subCls}>
+                    {subCls}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   // Convert month name (JAN, FEB, etc.) to month number (1-12)
   const getMonthNumberFromName = (monthName: string | undefined): number => {
@@ -81,7 +255,6 @@ export default function MonthlyOverviewPage() {
       try {
         const dataResponse = await fetch('/api/data?limit=100000');
         const dataResult = await dataResponse.json();
-        console.log('Monthly Overview - Loaded data:', dataResult.data.length, 'records');
         setData(dataResult.data);
         setLastUpdated(new Date());
       } catch (error) {
@@ -98,16 +271,41 @@ export default function MonthlyOverviewPage() {
   const calculatedMonthlyData = useMemo(() => {
     if (data.length === 0) return null;
 
-    // Filter data by selected year
-    const filteredData = selectedYear === 'all' 
-      ? data 
-      : data.filter(record => record.uy === selectedYear);
+    // Filter data by selected filters
+    let filteredData = data;
 
-    console.log('Monthly Overview - Filtered data:', {
-      selectedYear,
-      totalRecords: data.length,
-      filteredRecords: filteredData.length
-    });
+    if (selectedInceptionYear !== 'all') {
+      const yearNumber = parseInt(selectedInceptionYear, 10);
+      filteredData = filteredData.filter(record => record.inceptionYear === yearNumber);
+    }
+
+    if (selectedQuarter !== 'all') {
+      filteredData = filteredData.filter(record => {
+        if (!record.inceptionQuarter) return false;
+        // inceptionQuarter is a number (1-4), convert to Q1, Q2, Q3, Q4 for comparison
+        const qNum = typeof record.inceptionQuarter === 'number' 
+          ? record.inceptionQuarter 
+          : parseInt(String(record.inceptionQuarter), 10);
+        const quarterStr = qNum >= 1 && qNum <= 4 ? `Q${qNum}` : '';
+        return quarterStr === selectedQuarter.toUpperCase();
+      });
+    }
+
+    if (selectedLoc !== 'all') {
+      filteredData = filteredData.filter(record => record.loc === selectedLoc);
+    }
+
+    if (selectedExtType !== 'all') {
+      filteredData = filteredData.filter(record => record.extType === selectedExtType);
+    }
+
+    if (selectedClass !== 'all') {
+      filteredData = filteredData.filter(record => record.className === selectedClass);
+    }
+
+    if (selectedSubClass !== 'all') {
+      filteredData = filteredData.filter(record => record.subClass === selectedSubClass);
+    }
 
     if (filteredData.length === 0) return null;
 
@@ -115,29 +313,23 @@ export default function MonthlyOverviewPage() {
     const monthlyGroups: Record<number, ReinsuranceData[]> = {};
     
     filteredData.forEach(record => {
-      // Use inceptionMonth if available (already parsed from comDate)
-      const monthNumber = record.inceptionMonth 
-        ? getMonthNumberFromName(record.inceptionMonth)
-        : 0;
+      // inceptionMonth is a number (1-12) in the new CSV
+      let monthNumber = 0;
+      if (record.inceptionMonth) {
+        if (typeof record.inceptionMonth === 'number') {
+          monthNumber = record.inceptionMonth;
+        } else {
+          // Fallback: try to parse as month name if it's a string
+          monthNumber = getMonthNumberFromName(String(record.inceptionMonth));
+        }
+      }
       
-      if (monthNumber > 0) {
+      if (monthNumber >= 1 && monthNumber <= 12) {
         if (!monthlyGroups[monthNumber]) {
           monthlyGroups[monthNumber] = [];
         }
         monthlyGroups[monthNumber].push(record);
       }
-    });
-
-    console.log('Monthly Overview - Monthly groups:', {
-      selectedYear,
-      totalFilteredRecords: filteredData.length,
-      recordsWithInceptionMonth: filteredData.filter(r => r.inceptionMonth).length,
-      availableMonths: Object.keys(monthlyGroups).map(Number).sort(),
-      monthCounts: Object.entries(monthlyGroups).map(([month, records]) => ({
-        month: Number(month),
-        monthName: monthLabels[Number(month) - 1],
-        count: records.length
-      }))
     });
 
     // Calculate metrics for each month
@@ -175,16 +367,6 @@ export default function MonthlyOverviewPage() {
       totals.incurredClaims += monthData.incurredClaims;
       totals.technicalResult += monthData.technicalResult;
 
-      // Debug logging for months with data
-      if (monthRecords.length > 0) {
-        console.log(`${selectedYear} - Month ${month} (${monthLabels[month-1]}):`, {
-          records: monthRecords.length,
-          premium: kpis.premium,
-          claims: kpis.incurredClaims,
-          lossRatio: kpis.lossRatio,
-          sampleMonths: monthRecords.slice(0, 3).map(r => r.inceptionMonth)
-        });
-      }
     }
 
     // Calculate totals using aggregateKPIs for accuracy
@@ -198,9 +380,7 @@ export default function MonthlyOverviewPage() {
     totals.combinedRatio = totalKPIs.combinedRatio;
     totals.technicalResult = totalKPIs.premium - totalKPIs.incurredClaims - totalKPIs.expense;
 
-    console.log('Monthly Overview - Final result:', {
-      selectedYear,
-      totalRecords: filteredData.length,
+    // Return monthly aggregated data
       recordsWithInceptionMonth: filteredData.filter(r => r.inceptionMonth).length,
       monthlyDataLength: monthlyData.length,
       monthsWithData: monthlyData.filter(m => m.policyCount > 0).length,
@@ -216,7 +396,7 @@ export default function MonthlyOverviewPage() {
       monthlyData,
       totals
     };
-  }, [data, selectedYear]);
+  }, [data, selectedInceptionYear, selectedQuarter, selectedLoc, selectedExtType, selectedClass, selectedSubClass]);
 
   // Update monthly data when calculated data changes
   useEffect(() => {
@@ -252,7 +432,7 @@ export default function MonthlyOverviewPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <h1 className="text-2xl font-bold text-foreground">
-                  Monthly Overview {selectedYear !== 'all' ? `- ${selectedYear}` : '- All Years'}
+                  Monthly Overview
                 </h1>
                 <Badge variant="outline" className="text-xs">
                   {data.length.toLocaleString()} records
@@ -268,32 +448,7 @@ export default function MonthlyOverviewPage() {
           </div>
         </div>
 
-        {/* Year Filter */}
-        <div className="border-b bg-muted/30">
-          <div className="container mx-auto px-4 py-3">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Calendar className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Year:</span>
-              </div>
-              <div className="min-w-[120px]">
-                <Select value={selectedYear} onValueChange={setSelectedYear}>
-                  <SelectTrigger className="h-8">
-                    <SelectValue placeholder="Select Year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Years</SelectItem>
-                    {availableYears.map(year => (
-                      <SelectItem key={year} value={year}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-        </div>
+        <FiltersBar />
 
         {/* Main Content */}
         <div className="container mx-auto px-4 py-6 space-y-6">
@@ -325,7 +480,7 @@ export default function MonthlyOverviewPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <h1 className="text-2xl font-bold text-foreground">
-                Monthly Overview {selectedYear !== 'all' ? `- ${selectedYear}` : '- All Years'}
+                  Monthly Overview
               </h1>
               <Badge variant="outline" className="text-xs">
                 {monthlyData ? 
@@ -344,32 +499,7 @@ export default function MonthlyOverviewPage() {
         </div>
       </div>
 
-      {/* Year Filter */}
-      <div className="border-b bg-muted/30">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <Calendar className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Year:</span>
-            </div>
-            <div className="min-w-[120px]">
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="h-8">
-                  <SelectValue placeholder="Select Year" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Years</SelectItem>
-                  {availableYears.map(year => (
-                    <SelectItem key={year} value={year}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-      </div>
+      <FiltersBar />
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-6 space-y-6">
@@ -385,7 +515,7 @@ export default function MonthlyOverviewPage() {
               <div className="text-2xl font-bold">{formatNumber(monthlyData.totals.policyCount)}</div>
               <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
                 <Minus className="w-3 h-3" />
-                {selectedYear !== 'all' ? selectedYear : 'All Years'} • {monthlyData.monthlyData.filter(m => m.policyCount > 0).length} active months
+                {monthlyData.monthlyData.filter(m => m.policyCount > 0).length} active months
               </p>
             </CardContent>
           </Card>
@@ -397,10 +527,10 @@ export default function MonthlyOverviewPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatKD(monthlyData.totals.grossPremium)}</div>
+              <div className="text-2xl font-bold">{formatCurrency(monthlyData.totals.grossPremium)}</div>
               <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
                 <Minus className="w-3 h-3" />
-                {selectedYear !== 'all' ? selectedYear : 'All Years'} data
+                Total premium
               </p>
             </CardContent>
           </Card>
@@ -417,7 +547,7 @@ export default function MonthlyOverviewPage() {
               </div>
               <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
                 <Minus className="w-3 h-3" />
-                {selectedYear !== 'all' ? selectedYear : 'All Years'} average
+                Average across all months
               </p>
             </CardContent>
           </Card>
@@ -430,131 +560,104 @@ export default function MonthlyOverviewPage() {
             </CardHeader>
             <CardContent>
               <div className={`text-2xl font-bold ${monthlyData.totals.technicalResult > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatKD(monthlyData.totals.technicalResult)}
+                {formatCurrency(monthlyData.totals.technicalResult)}
               </div>
               <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
                 <Minus className="w-3 h-3" />
-                {selectedYear !== 'all' ? selectedYear : 'All Years'} total
+                Total technical result
               </p>
             </CardContent>
           </Card>
         </div>
 
         {/* Monthly Performance Table */}
-          <Card>
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Monthly Performance Metrics - {selectedYear !== 'all' ? selectedYear : 'All Years'}
+            <CardTitle className="flex items-center justify-between">
+              <span>Monthly Performance Breakdown</span>
+              {isAdmin && (
+                <Button variant="outline" size="sm">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
+              )}
             </CardTitle>
-            <CardDescription className="space-y-1">
-              <div>Detailed breakdown of key performance indicators by month</div>
-              <div className="text-xs text-muted-foreground/80">All monetary values shown in KWD.</div>
+            <CardDescription>
+              <CurrencyLabel />
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="w-full overflow-x-auto">
-              <Table className="table-fixed w-full min-w-[1400px] border-collapse text-sm border border-border">
-                <TableHeader>
+            <div className="overflow-x-auto border rounded-3xl">
+              <Table className="min-w-[1100px] text-sm">
+                <TableHeader className="bg-muted/50">
                   <TableRow>
-                    <TableHead className="w-[180px] font-semibold text-left px-4 py-3 bg-muted/50">Metric</TableHead>
-                    {monthLabels.map((month) => (
-                      <TableHead key={month} className="text-center font-semibold w-[120px] px-2 py-3 bg-muted/30">
-                        {month}
-                      </TableHead>
-                    ))}
-                    <TableHead className="text-center font-semibold w-[120px] bg-muted px-2 py-3">
-                      Total
-                    </TableHead>
+                    <TableHead className="font-semibold">Month</TableHead>
+                    <TableHead className="text-right font-semibold">Policies</TableHead>
+                    <TableHead className="text-right font-semibold">Gross Premium</TableHead>
+                    <TableHead className="text-right font-semibold">Incurred Claims</TableHead>
+                    <TableHead className="text-right font-semibold">Acquisition %</TableHead>
+                    <TableHead className="text-right font-semibold">Loss Ratio</TableHead>
+                    <TableHead className="text-right font-semibold">Technical Result</TableHead>
+                    <TableHead className="text-right font-semibold">Combined Ratio</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {/* Policy Premium Row */}
-                  <TableRow className="hover:bg-muted/50">
-                    <TableCell className="font-medium w-[180px] px-4 py-3">Policy Premium</TableCell>
-                    {monthlyData.monthlyData.map((month) => (
-                      <TableCell key={month.month} className="text-center w-[120px] px-2 py-3">
-                        {formatKDNumeric(month.grossPremium)}
+                  {monthlyData.monthlyData.map((month) => (
+                    <TableRow key={month.month} className="border-b hover:bg-muted/30">
+                      <TableCell className="font-medium">
+                        <div className="flex items-center space-x-2">
+                          <span className="inline-flex items-center justify-center w-6 h-6 bg-primary/10 text-primary text-xs font-bold rounded-full">
+                            {month.month}
+                          </span>
+                          <span>{monthLabels[month.month - 1]}</span>
+                        </div>
                       </TableCell>
-                    ))}
-                    <TableCell className="text-center font-semibold bg-muted w-[120px] px-2 py-3">
-                      {formatKDNumeric(monthlyData.totals.grossPremium)}
-                    </TableCell>
-                  </TableRow>
-
-                  {/* Gross Premium Row */}
-                  <TableRow className="hover:bg-muted/50">
-                    <TableCell className="font-medium w-[180px] px-4 py-3">Gross Premium</TableCell>
-                    {monthlyData.monthlyData.map((month) => (
-                      <TableCell key={month.month} className="text-center w-[120px] px-2 py-3">
-                        {formatKDNumeric(month.grossPremium)}
+                      <TableCell className="text-right font-mono text-sm">
+                        {formatNumber(month.policyCount)}
                       </TableCell>
-                    ))}
-                    <TableCell className="text-center font-semibold bg-muted w-[120px] px-2 py-3">
-                      {formatKDNumeric(monthlyData.totals.grossPremium)}
-                    </TableCell>
-                  </TableRow>
-
-                  {/* Acquisition Costs % Row */}
-                  <TableRow className="hover:bg-muted/50">
-                    <TableCell className="font-medium w-[180px] px-4 py-3">Acquisition Costs %</TableCell>
-                    {monthlyData.monthlyData.map((month) => (
-                      <TableCell key={month.month} className="text-center w-[120px] px-2 py-3">
-                        {formatPct(month.acquisitionCostPercent)}
+                      <TableCell className="text-right font-mono text-sm">
+                        {formatCurrencyNumeric(month.grossPremium)}
                       </TableCell>
-                    ))}
-                    <TableCell className="text-center font-semibold bg-muted w-[120px] px-2 py-3">
-                      {formatPct(monthlyData.totals.acquisitionCostPercent)}
-                    </TableCell>
-                  </TableRow>
-
-                  {/* Incurred Claims Row */}
-                  <TableRow className="hover:bg-muted/50">
-                    <TableCell className="font-medium w-[180px] px-4 py-3">Incurred Claims</TableCell>
-                    {monthlyData.monthlyData.map((month) => (
-                      <TableCell key={month.month} className="text-center w-[120px] px-2 py-3">
-                        {formatKDNumeric(month.incurredClaims)}
+                      <TableCell className="text-right font-mono text-sm">
+                        {formatCurrencyNumeric(month.incurredClaims)}
                       </TableCell>
-                    ))}
-                    <TableCell className="text-center font-semibold bg-muted w-[120px] px-2 py-3">
-                      {formatKDNumeric(monthlyData.totals.incurredClaims)}
-                    </TableCell>
-                  </TableRow>
-
-                  {/* Loss Ratio % Row */}
-                  <TableRow className="hover:bg-muted/50">
-                    <TableCell className="font-medium w-[180px] px-4 py-3">Loss Ratio %</TableCell>
-                    {monthlyData.monthlyData.map((month) => (
-                      <TableCell key={month.month} className={`text-center w-[120px] px-2 py-3 ${getValueColor("Loss Ratio %", month.lossRatio)}`}>
+                      <TableCell className="text-right">
+                        <span className={getValueColor("Acquisition Costs %", month.acquisitionCostPercent)}>
+                          {formatPct(month.acquisitionCostPercent)}
+                        </span>
+                      </TableCell>
+                      <TableCell className={`text-right ${getValueColor("Loss Ratio %", month.lossRatio)}`}>
                         {formatPct(month.lossRatio)}
                       </TableCell>
-                    ))}
-                    <TableCell className={`text-center font-semibold bg-muted w-[120px] px-2 py-3 ${getValueColor("Loss Ratio %", monthlyData.totals.lossRatio)}`}>
-                      {formatPct(monthlyData.totals.lossRatio)}
-                    </TableCell>
-                  </TableRow>
-
-                  {/* Technical Result Row */}
-                  <TableRow className="hover:bg-muted/50">
-                    <TableCell className="font-medium w-[180px] px-4 py-3">Technical Result</TableCell>
-                    {monthlyData.monthlyData.map((month) => (
-                      <TableCell key={month.month} className={`text-center w-[120px] px-2 py-3 ${month.technicalResult > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {formatKDNumeric(month.technicalResult)}
+                      <TableCell className="text-right font-mono text-sm">
+                        <span className={month.technicalResult >= 0 ? 'text-green-600' : 'text-red-600'}>
+                          {formatCurrencyNumeric(month.technicalResult)}
+                        </span>
                       </TableCell>
-                    ))}
-                    <TableCell className={`text-center font-semibold bg-muted w-[120px] px-2 py-3 ${monthlyData.totals.technicalResult > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {formatKDNumeric(monthlyData.totals.technicalResult)}
-                    </TableCell>
-                  </TableRow>
-
-                  {/* Combined Ratio % Row */}
-                  <TableRow className="hover:bg-muted/50">
-                    <TableCell className="font-medium w-[180px] px-4 py-3">Combined Ratio %</TableCell>
-                    {monthlyData.monthlyData.map((month) => (
-                      <TableCell key={month.month} className={`text-center w-[120px] px-2 py-3 ${getValueColor("Combined Ratio %", month.combinedRatio)}`}>
+                      <TableCell className={`text-right ${getValueColor("Combined Ratio %", month.combinedRatio)}`}>
                         {formatPct(month.combinedRatio)}
                       </TableCell>
-                    ))}
-                    <TableCell className={`text-center font-semibold bg-muted w-[120px] px-2 py-3 ${getValueColor("Combined Ratio %", monthlyData.totals.combinedRatio)}`}>
+                    </TableRow>
+                  ))}
+                  <TableRow className="bg-muted/50 font-semibold border-t-2">
+                    <TableCell className="font-medium text-primary">TOTAL</TableCell>
+                    <TableCell className="text-right">{formatNumber(monthlyData.totals.policyCount)}</TableCell>
+                    <TableCell className="text-right">{formatCurrencyNumeric(monthlyData.totals.grossPremium)}</TableCell>
+                    <TableCell className="text-right">{formatCurrencyNumeric(monthlyData.totals.incurredClaims)}</TableCell>
+                    <TableCell className="text-right">
+                      <span className={getValueColor("Acquisition Costs %", monthlyData.totals.acquisitionCostPercent)}>
+                        {formatPct(monthlyData.totals.acquisitionCostPercent)}
+                      </span>
+                    </TableCell>
+                    <TableCell className={`text-right ${getValueColor("Loss Ratio %", monthlyData.totals.lossRatio)}`}>
+                      {formatPct(monthlyData.totals.lossRatio)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span className={monthlyData.totals.technicalResult >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        {formatCurrencyNumeric(monthlyData.totals.technicalResult)}
+                      </span>
+                    </TableCell>
+                    <TableCell className={`text-right ${getValueColor("Combined Ratio %", monthlyData.totals.combinedRatio)}`}>
                       {formatPct(monthlyData.totals.combinedRatio)}
                     </TableCell>
                   </TableRow>
@@ -566,4 +669,8 @@ export default function MonthlyOverviewPage() {
       </div>
     </div>
   );
+}
+
+export default function MonthlyOverviewPage() {
+  return <MonthlyOverviewContent />;
 }

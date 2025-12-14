@@ -3,6 +3,7 @@ import { getSession } from '@/lib/session';
 
 export async function GET() {
   const session = await getSession();
+  
   if (!session) {
     return NextResponse.json({ authenticated: false }, { status: 401 });
   }
@@ -10,12 +11,12 @@ export async function GET() {
   return NextResponse.json({
     authenticated: true,
     user: {
-      id: session.sub,
+      id: session.userId,
+      username: session.username,
       email: session.email,
       name: session.name,
       roles: session.roles,
     },
   });
 }
-
 

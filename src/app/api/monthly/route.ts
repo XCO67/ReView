@@ -1,9 +1,15 @@
 export const runtime = "nodejs";
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getSessionFromRequest } from '@/lib/session';
+import { loadUWData } from '@/lib/uw-data';
+import { filterByRole } from '@/lib/role-filter';
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
+    // Get user session for role-based filtering
+    const session = await getSessionFromRequest(req);
+    
     const url = new URL(req.url);
     const year = url.searchParams.get("year");
     
@@ -11,7 +17,12 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "year is required" }, { status: 400 });
     }
 
+    // Load data and apply role-based filtering
+    const allData = await loadUWData();
+    const roleFilteredData = filterByRole(allData, session?.roles);
+
     // Return empty monthly data - ready for PostgreSQL implementation
+    // But ensure role-based filtering is applied
     return NextResponse.json({ 
       year: parseInt(year), 
       months: {},
@@ -25,7 +36,8 @@ export async function GET(req: Request) {
         technicalResult: 0,
         combinedRatioPct: 0,
       },
-      message: "Database implementation removed - ready for PostgreSQL"
+      message: "Database implementation removed - ready for PostgreSQL",
+      filteredRecords: roleFilteredData.length // For debugging
     });
   } catch (error) {
     console.error('Failed to fetch monthly data:', error);

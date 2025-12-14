@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatKD, formatPct, formatNumber } from '@/lib/format';
+import { useFormatCurrency } from '@/lib/format-currency';
 import { KPIData } from '@/lib/schema';
-import { TrendingUp, TrendingDown, Minus, CircleDollarSign, ShieldCheck, Layers, PieChart, Activity, Briefcase, Percent, Gauge, Users, Shield } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, CircleDollarSign, ShieldCheck, Layers, PieChart, Activity, Briefcase, Percent, Gauge, Users, Shield, X } from 'lucide-react';
 
 interface KpiCardProps {
   title: string;
@@ -26,10 +27,12 @@ export function KpiCard({
   description,
   delay = 0 
 }: KpiCardProps) {
+  const { formatCurrency } = useFormatCurrency();
+  
   const formatValue = (val: number) => {
     switch (format) {
       case 'currency':
-        return formatKD(val);
+        return formatCurrency(val);
       case 'percentage':
         return formatPct(val);
       case 'number':
@@ -121,10 +124,12 @@ type PreparedKpiCard = KpiCardProps & {
   key: string;
 };
 
-const formatPrimaryValue = (value: number, format: KpiCardProps['format']) => {
+// This function is used in KpiStrip which is a client component
+// We'll create a wrapper component that uses the hook
+const formatPrimaryValue = (value: number, format: KpiCardProps['format'], formatCurrencyFn?: (val: number) => string) => {
   switch (format) {
     case 'currency':
-      return formatKD(value);
+      return formatCurrencyFn ? formatCurrencyFn(value) : formatKD(value);
     case 'percentage':
       return formatPct(value);
     case 'number':
@@ -139,6 +144,7 @@ const calculateChange = (value: number, previousValue?: number) => {
 };
 
 export function KpiStrip({ data, previousData }: KpiStripProps) {
+  const { formatCurrency } = useFormatCurrency();
   const kpiCards: PreparedKpiCard[] = useMemo(() => ([
     {
       key: 'premium',
@@ -178,7 +184,7 @@ export function KpiStrip({ data, previousData }: KpiStripProps) {
     },
     {
       key: 'expense',
-      title: 'Expense',
+      title: 'Acquisition Cost',
       value: data.expense,
       previousValue: previousData?.expense,
       format: 'currency',
@@ -196,11 +202,11 @@ export function KpiStrip({ data, previousData }: KpiStripProps) {
     },
     {
       key: 'expenseRatio',
-      title: 'Expense Ratio',
+      title: 'Acquisition Ratio',
       value: data.expenseRatio,
       previousValue: previousData?.expenseRatio,
       format: 'percentage',
-      description: 'Expense / Premium',
+      description: 'Acquisition Cost / Premium',
       icon: <Percent className="h-4 w-4" />,
     },
     {
@@ -209,7 +215,7 @@ export function KpiStrip({ data, previousData }: KpiStripProps) {
       value: data.combinedRatio,
       previousValue: previousData?.combinedRatio,
       format: 'percentage',
-      description: 'Loss + Expense Ratio',
+      description: 'Loss + Acquisition Ratio',
       icon: <Gauge className="h-4 w-4" />,
     },
     {
@@ -258,7 +264,10 @@ export function KpiStrip({ data, previousData }: KpiStripProps) {
 
   const clearSelection = () => setSelectedKeys([]);
 
-  const selectedCards = kpiCards.filter(card => selectedKeys.includes(card.key));
+  // Maintain selection order - first selected stays leftmost
+  const selectedCards = selectedKeys
+    .map(key => kpiCards.find(card => card.key === key))
+    .filter((card): card is PreparedKpiCard => card !== undefined);
 
   return (
     <div className="rounded-3xl border bg-card/70 backdrop-blur px-4 py-5 shadow-sm">
@@ -309,49 +318,75 @@ export function KpiStrip({ data, previousData }: KpiStripProps) {
           Select one or more KPIs above to view their detailed values.
         </div>
       ) : (
-        <div className="mt-6 grid gap-6 md:grid-cols-2">
-          {selectedCards.map((activeCard) => {
+        <div className="mt-6 flex flex-wrap gap-3">
+          <AnimatePresence mode="popLayout">
+            {selectedCards.map((activeCard) => {
             const change = calculateChange(activeCard.value, activeCard.previousValue);
             return (
               <motion.div
                 key={activeCard.key}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4 }}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.3 }}
+                className="relative"
               >
-                <div className="h-full rounded-3xl border bg-gradient-to-br from-background via-background to-muted/60 p-6 shadow-inner">
-                  <div className="flex items-center gap-3">
-                    <span className="rounded-2xl bg-primary/10 p-3 text-primary">
+                <div className="relative rounded-xl border bg-gradient-to-br from-background via-background to-muted/60 p-4 shadow-sm min-w-[200px] max-w-[280px]">
+                  {/* Close button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleSelection(activeCard.key);
+                    }}
+                    className="absolute -right-2 -top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border bg-background shadow-md transition hover:bg-muted hover:scale-110"
+                    aria-label={`Close ${activeCard.title}`}
+                  >
+                    <X className="h-3.5 w-3.5 text-muted-foreground" />
+                  </button>
+
+                  {/* Header */}
+                  <div className="flex items-start gap-2.5 mb-3 pr-6">
+                    <span className="rounded-lg bg-primary/10 p-2 text-primary flex-shrink-0">
                       {activeCard.icon}
                     </span>
-                    <h3 className="text-2xl font-semibold text-foreground break-words">{activeCard.title}</h3>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-semibold text-foreground leading-tight">{activeCard.title}</h3>
+                      {activeCard.description && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{activeCard.description}</p>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="mt-6 flex flex-wrap items-end justify-between gap-6">
-                    <div>
-                      <p className="text-4xl font-bold text-foreground break-words">
-                        {formatPrimaryValue(activeCard.value, activeCard.format)}
-                      </p>
-                    </div>
-                    {change !== null && (
-                      <div
-                        className={`rounded-2xl px-4 py-3 text-sm font-semibold whitespace-nowrap ${
-                          change >= 0
-                            ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-200'
-                            : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-200'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          {change >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                          <span>{change > 0 ? '+' : ''}{change.toFixed(1)}% vs previous</span>
-                        </div>
-                      </div>
-                    )}
+                  {/* Value */}
+                  <div className="mb-2">
+                    <p className="text-2xl font-bold text-foreground leading-tight">
+                      {formatPrimaryValue(activeCard.value, activeCard.format, formatCurrency)}
+                    </p>
                   </div>
+
+                  {/* Change indicator */}
+                  {change !== null && (
+                    <div
+                      className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[10px] font-semibold ${
+                        change >= 0
+                          ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-200'
+                          : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-200'
+                      }`}
+                    >
+                      {change >= 0 ? (
+                        <TrendingUp className="h-3 w-3" />
+                      ) : (
+                        <TrendingDown className="h-3 w-3" />
+                      )}
+                      <span>{change > 0 ? '+' : ''}{change.toFixed(1)}%</span>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             );
           })}
+          </AnimatePresence>
         </div>
       )}
     </div>

@@ -1,33 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { getKeycloakClient, getPostLogoutRedirectUri } from '@/lib/auth';
-import { getSessionCookieName, verifySessionToken, clearSessionCookie } from '@/lib/session';
+import { clearSessionCookie, getSessionFromRequest } from '@/lib/session';
+import { recordAuditEvent } from '@/lib/audit-log';
 
 export async function POST(request: NextRequest) {
-  const cookieStore = cookies();
-  const sessionCookie = cookieStore.get(getSessionCookieName());
-  clearSessionCookie();
+  const session = await getSessionFromRequest(request);
 
-  if (!sessionCookie) {
-    return NextResponse.redirect(new URL('/login', request.nextUrl.origin));
+  if (session) {
+    await recordAuditEvent(
+      session.userId,
+      'logout',
+      request.headers.get('x-forwarded-for') ?? request.ip ?? 'unknown'
+    );
   }
 
-  const session = await verifySessionToken(sessionCookie.value);
-  if (!session?.idToken) {
-    return NextResponse.redirect(new URL('/login', request.nextUrl.origin));
-  }
-
-  const client = await getKeycloakClient();
-  const endSessionUrl = client.endSessionUrl({
-    id_token_hint: session.idToken,
-    post_logout_redirect_uri: getPostLogoutRedirectUri(),
-  });
-
-  return NextResponse.redirect(endSessionUrl);
+  const response = NextResponse.json({ success: true });
+  clearSessionCookie(response.cookies);
+  return response;
 }
-
-export async function GET(request: NextRequest) {
-  return POST(request);
-}
-
 

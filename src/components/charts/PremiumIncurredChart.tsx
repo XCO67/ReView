@@ -5,8 +5,10 @@ import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { formatKD, formatPct } from '@/lib/format';
+import { useFormatCurrency } from '@/lib/format-currency';
 import { ReinsuranceData } from '@/lib/schema';
 import { TrendingUp, AlertTriangle } from 'lucide-react';
+import { METRIC_COLORS } from '@/lib/colors/metrics';
 
 interface PremiumIncurredLineChartProps {
   data: ReinsuranceData[];
@@ -14,7 +16,7 @@ interface PremiumIncurredLineChartProps {
 }
 
 export function PremiumIncurredLineChart({ data, className }: PremiumIncurredLineChartProps) {
-  console.log('PremiumIncurredLineChart - Data received:', data.length, 'records');
+  const { formatCurrencyNumeric } = useFormatCurrency();
   
   const chartData = useMemo(() => {
     const uyMap = new Map<string, { 
@@ -30,8 +32,10 @@ export function PremiumIncurredLineChart({ data, className }: PremiumIncurredLin
         uyMap.set(uy, { uy, premium: 0, incurred: 0, lossRatio: 0 });
       }
       const entry = uyMap.get(uy)!;
-      entry.premium += record.grossUWPrem;
-      entry.incurred += record.grossPaidClaims + record.grossOsLoss;
+      // Use GRS_PREM (KD) - column 66 (grsPremKD) for premium
+      entry.premium += record.grsPremKD || 0;
+      // Use INC_CLAIM (KD) - column 71 (incClaimKD) for incurred claims
+      entry.incurred += record.incClaimKD || (record.paidClaimsKD || 0) + (record.osClaimKD || 0);
     });
 
     // Calculate loss ratios
@@ -55,15 +59,15 @@ export function PremiumIncurredLineChart({ data, className }: PremiumIncurredLin
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Premium:</span>
-              <span className="font-medium text-blue-600">{formatKD(data.premium)}</span>
+              <span className="font-medium" style={{ color: METRIC_COLORS.premium }}>{formatCurrencyNumeric(data.premium)}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Incurred Claims:</span>
-              <span className="font-medium text-red-600">{formatKD(data.incurred)}</span>
+              <span className="font-medium" style={{ color: METRIC_COLORS.incurredClaims }}>{formatCurrencyNumeric(data.incurred)}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Loss Ratio:</span>
-              <span className={`font-medium ${data.lossRatio > 80 ? 'text-red-600' : data.lossRatio > 60 ? 'text-yellow-600' : 'text-green-600'}`}>
+              <span className="font-medium" style={{ color: METRIC_COLORS.lossRatio }}>
                 {formatPct(data.lossRatio)}
               </span>
             </div>
@@ -90,11 +94,11 @@ export function PremiumIncurredLineChart({ data, className }: PremiumIncurredLin
             </CardTitle>
             <div className="flex items-center gap-4 text-sm">
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: METRIC_COLORS.premium }}></div>
                 <span>Premium</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: METRIC_COLORS.incurredClaims }}></div>
                 <span>Incurred</span>
               </div>
             </div>
@@ -104,20 +108,20 @@ export function PremiumIncurredLineChart({ data, className }: PremiumIncurredLin
           <div className="space-y-4">
             {/* Summary Stats */}
             <div className="grid grid-cols-3 gap-4">
-              <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  {formatKD(totalPremium)}
+              <div className="text-center p-3 rounded-lg" style={{ backgroundColor: `${METRIC_COLORS.premium}20` }}>
+                <div className="text-2xl font-bold" style={{ color: METRIC_COLORS.premium }}>
+                  {formatCurrencyNumeric(totalPremium)}
                 </div>
                 <div className="text-xs text-muted-foreground">Total Premium</div>
               </div>
-              <div className="text-center p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
-                <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                  {formatKD(totalIncurred)}
+              <div className="text-center p-3 rounded-lg" style={{ backgroundColor: `${METRIC_COLORS.incurredClaims}20` }}>
+                <div className="text-2xl font-bold" style={{ color: METRIC_COLORS.incurredClaims }}>
+                  {formatCurrencyNumeric(totalIncurred)}
                 </div>
                 <div className="text-xs text-muted-foreground">Total Incurred</div>
               </div>
-              <div className="text-center p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
-                <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+              <div className="text-center p-3 rounded-lg" style={{ backgroundColor: `${METRIC_COLORS.lossRatio}20` }}>
+                <div className="text-2xl font-bold" style={{ color: METRIC_COLORS.lossRatio }}>
                   {formatPct(overallLossRatio)}
                 </div>
                 <div className="text-xs text-muted-foreground">Loss Ratio</div>
@@ -143,26 +147,43 @@ export function PremiumIncurredLineChart({ data, className }: PremiumIncurredLin
                       tickLine={{ stroke: '#6b7280' }}
                     />
                     <YAxis 
+                      domain={[0, 'auto']}
                       tick={{ fontSize: 12 }}
                       tickLine={{ stroke: '#6b7280' }}
-                      tickFormatter={(value) => formatKD(value)}
+                      axisLine={{ stroke: '#6b7280', strokeWidth: 1 }}
+                      tickFormatter={(value) => {
+                        const num = Number(value);
+                        if (isNaN(num) || num < 0) return '0';
+                        // Format as clean numbers: 100M, 50M, 10M, etc.
+                        if (num >= 1000000000) {
+                          return `${(num / 1000000000).toFixed(1)}B`;
+                        }
+                        if (num >= 1000000) {
+                          return `${(num / 1000000).toFixed(1)}M`;
+                        }
+                        if (num >= 1000) {
+                          return `${(num / 1000).toFixed(0)}K`;
+                        }
+                        return num.toString();
+                      }}
+                      allowDecimals={false}
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend />
                     <Line
                       type="monotone"
                       dataKey="premium"
-                      stroke="#3b82f6"
+                      stroke={METRIC_COLORS.premium}
                       strokeWidth={3}
-                      dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
+                      dot={{ fill: METRIC_COLORS.premium, strokeWidth: 2, r: 4 }}
                       name="Premium"
                     />
                     <Line
                       type="monotone"
                       dataKey="incurred"
-                      stroke="#ef4444"
+                      stroke={METRIC_COLORS.incurredClaims}
                       strokeWidth={3}
-                      dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
+                      dot={{ fill: METRIC_COLORS.incurredClaims, strokeWidth: 2, r: 4 }}
                       name="Incurred Claims"
                     />
                   </LineChart>

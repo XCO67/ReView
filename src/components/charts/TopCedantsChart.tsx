@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatKD, formatPct } from '@/lib/format';
+import { useFormatCurrency } from '@/lib/format-currency';
 import { ReinsuranceData } from '@/lib/schema';
 import { Building2, Award } from 'lucide-react';
 
@@ -13,6 +14,7 @@ interface TopCedantsListProps {
 }
 
 export function TopCedantsList({ data, className }: TopCedantsListProps) {
+  const { formatCurrencyNumeric } = useFormatCurrency();
   const cedantsData = useMemo(() => {
     const cedantMap = new Map<string, {
       cedant: string;
@@ -77,7 +79,7 @@ export function TopCedantsList({ data, className }: TopCedantsListProps) {
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
                 <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  {formatKD(totalPremium)}
+                  {formatCurrencyNumeric(totalPremium)}
                 </div>
                 <div className="text-xs text-muted-foreground">Total Premium</div>
               </div>
@@ -115,7 +117,7 @@ export function TopCedantsList({ data, className }: TopCedantsListProps) {
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right">
-                        <div className="font-medium">{formatKD(item.premium)}</div>
+                        <div className="font-medium">{formatCurrencyNumeric(item.premium)}</div>
                         <div className="text-xs text-muted-foreground">
                           {totalPremium > 0 ? formatPct((item.premium / totalPremium) * 100) : '0%'} share
                         </div>

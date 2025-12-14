@@ -1,30 +1,61 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Download, BarChart3, TrendingUp, Info, X, ArrowUpDown, ArrowUp, ArrowDown, Calendar } from 'lucide-react';
-import { formatKD, formatKDNumeric, formatPct, formatNumber } from '@/lib/format';
+import { Download, BarChart3, TrendingUp, Info, X, Plus, Trash2, Filter, GitCompare } from 'lucide-react';
+import { formatPct, formatNumber } from '@/lib/format';
+import { useFormatCurrency } from '@/lib/format-currency';
+import { CurrencyLabel } from '@/components/currency/CurrencyLabel';
+import { useUserRoles } from '@/hooks/useUserRoles';
 import { ReinsuranceData } from '@/lib/schema';
 import { aggregateKPIs } from '@/lib/kpi';
 import { ChatBot } from '@/components/chat/ChatBot';
+import { ComparisonBarChart } from '@/components/charts/ComparisonBarChart';
+import { UniversalFilterState } from '@/components/filters/UniversalFilterPanel';
+import { TopFilterPanel } from '@/components/filters/TopFilterPanel';
 
+interface ComparisonEntity {
+  id: string;
+  groupBy: string;
+  entityValue: string;
+  label: string;
+}
 
 export default function AnalyticsPage() {
+  const { isAdmin } = useUserRoles();
+  const { formatCurrency, formatCurrencyNumeric } = useFormatCurrency();
   const [data, setData] = useState<ReinsuranceData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Global Filters using UniversalFilterState
+  const [filters, setFilters] = useState<UniversalFilterState>({
+    office: null,
+    extType: null,
+    policyNature: null,
+    class: null,
+    subClass: null,
+    hub: null,
+    region: null,
+    country: null,
+    year: null,
+    month: null,
+    quarter: null,
+    broker: null,
+    cedant: null,
+    policyName: null,
+  });
+
+  // Comparison entities (max 8)
+  const [comparisonEntities, setComparisonEntities] = useState<ComparisonEntity[]>([]);
   const [groupBy, setGroupBy] = useState<string>('uy');
-  const [compareMode, setCompareMode] = useState(false);
-  const [selectedEntities, setSelectedEntities] = useState<string[]>([]);
   const [entitySearchTerm, setEntitySearchTerm] = useState('');
-  const [tableSearchTerm, setTableSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<string>('premium-desc'); // Default: highest premium first
 
   // Load data
   useEffect(() => {
@@ -44,7 +75,6 @@ export default function AnalyticsPage() {
           throw new Error('Invalid data structure received from API');
         }
         
-        console.log('Analytics - Loaded data:', dataResult.data.length, 'records');
         setData(dataResult.data);
       } catch (error) {
         console.error('Failed to load analytics data:', error);
@@ -56,8 +86,102 @@ export default function AnalyticsPage() {
     loadData();
   }, []);
 
+  // Clear filters function
+  const clearFilters = () => {
+    setFilters({
+      office: null,
+      extType: null,
+      policyNature: null,
+      class: null,
+      subClass: null,
+      hub: null,
+      region: null,
+      country: null,
+      year: null,
+      month: null,
+      quarter: null,
+      broker: null,
+      cedant: null,
+      policyName: null,
+    });
+  };
 
-  // Get unique values for the selected group-by field
+  // Apply global filters to data
+  const filteredData = useMemo(() => {
+    let filtered = data;
+
+    if (filters.office) {
+      filtered = filtered.filter(record => record.office === filters.office);
+    }
+
+    if (filters.extType && filters.extType.length > 0) {
+      filtered = filtered.filter(record => record.extType && filters.extType!.includes(record.extType));
+    }
+
+    if (filters.policyNature && filters.policyNature.length > 0) {
+      filtered = filtered.filter(record => record.arrangement && filters.policyNature!.includes(record.arrangement));
+    }
+
+    if (filters.class && filters.class.length > 0) {
+      filtered = filtered.filter(record => record.className && filters.class!.includes(record.className));
+    }
+
+    if (filters.subClass && filters.subClass.length > 0) {
+      filtered = filtered.filter(record => record.subClass && filters.subClass!.includes(record.subClass));
+    }
+
+    if (filters.hub) {
+      filtered = filtered.filter(record => record.hub === filters.hub);
+    }
+
+    if (filters.region) {
+      filtered = filtered.filter(record => record.region === filters.region);
+    }
+
+    if (filters.country && filters.country.length > 0) {
+      filtered = filtered.filter(record => record.countryName && filters.country!.includes(record.countryName));
+    }
+
+    if (filters.year) {
+      const yearNum = parseInt(filters.year, 10);
+      filtered = filtered.filter(record => {
+        const recordYear = record.inceptionYear || (record.uy ? parseInt(String(record.uy), 10) : null);
+        return recordYear === yearNum;
+      });
+    }
+
+    if (filters.month) {
+      // Filter by month if month field exists
+      filtered = filtered.filter(record => {
+        // Add month filtering logic if month field exists in data
+        return true; // Placeholder - adjust based on your data structure
+      });
+    }
+
+    if (filters.quarter) {
+      // Filter by quarter if quarter field exists
+      filtered = filtered.filter(record => {
+        // Add quarter filtering logic if quarter field exists in data
+        return true; // Placeholder - adjust based on your data structure
+      });
+    }
+
+    if (filters.broker) {
+      filtered = filtered.filter(record => record.broker === filters.broker);
+    }
+
+    if (filters.cedant) {
+      filtered = filtered.filter(record => record.cedant === filters.cedant);
+    }
+
+    if (filters.policyName) {
+      filtered = filtered.filter(record => record.orgInsuredTrtyName === filters.policyName);
+    }
+
+    return filtered;
+  }, [data, filters]);
+
+  // Get available entities for comparison based on groupBy
   const groupByOptions = useMemo(() => {
     const fieldMap: Record<string, keyof ReinsuranceData> = {
       'uy': 'uy',
@@ -68,15 +192,17 @@ export default function AnalyticsPage() {
       'countryName': 'countryName',
       'region': 'region',
       'hub': 'hub',
+      'className': 'className',
+      'subClass': 'subClass',
+      'office': 'office',
     };
 
     const field = fieldMap[groupBy];
     if (!field) return [];
 
-    return [...new Set(data.map(d => d[field] as string).filter(Boolean))].sort();
-  }, [data, groupBy]);
+    return [...new Set(filteredData.map(d => d[field] as string).filter(Boolean))].sort();
+  }, [filteredData, groupBy]);
 
-  // Filter options based on search term
   const filteredGroupByOptions = useMemo(() => {
     if (!entitySearchTerm.trim()) return groupByOptions;
     
@@ -85,8 +211,24 @@ export default function AnalyticsPage() {
     );
   }, [groupByOptions, entitySearchTerm]);
 
-  // Calculate analytics data
-  const analyticsData = useMemo(() => {
+  const groupByLabels: Record<string, { label: string; description: string }> = {
+    'uy': { label: 'Underwriting Year', description: 'Compare by year' },
+    'extType': { label: 'Extract Type', description: 'Compare by extract type' },
+    'broker': { label: 'Broker', description: 'Compare by broker' },
+    'cedant': { label: 'Cedant', description: 'Compare by cedant' },
+    'orgInsuredTrtyName': { label: 'Organization/Insured/Treaty', description: 'Compare by organization or treaty' },
+    'countryName': { label: 'Country', description: 'Compare by country' },
+    'region': { label: 'Region', description: 'Compare by region' },
+    'hub': { label: 'Hub', description: 'Compare by hub' },
+    'className': { label: 'Class', description: 'Compare by class' },
+    'subClass': { label: 'Subclass', description: 'Compare by subclass' },
+    'office': { label: 'Office', description: 'Compare by office (HO/FERO)' },
+  };
+
+  // Calculate comparison data for selected entities
+  const comparisonData = useMemo(() => {
+    if (comparisonEntities.length === 0) return [];
+
     const fieldMap: Record<string, keyof ReinsuranceData> = {
       'uy': 'uy',
       'extType': 'extType',
@@ -96,151 +238,74 @@ export default function AnalyticsPage() {
       'countryName': 'countryName',
       'region': 'region',
       'hub': 'hub',
+      'className': 'className',
+      'subClass': 'subClass',
+      'office': 'office',
     };
 
-    const field = fieldMap[groupBy];
-    if (!field) return [];
+    return comparisonEntities.map(entity => {
+      const field = fieldMap[entity.groupBy];
+      if (!field) return null;
 
-    // Group data by selected field
-    const grouped = data.reduce((acc, record) => {
-      const key = record[field] as string;
-      if (!key) return acc;
-      if (!acc[key]) {
-        acc[key] = [];
-      }
-      acc[key].push(record);
-      return acc;
-    }, {} as Record<string, ReinsuranceData[]>);
+      const entityData = filteredData.filter(d => d[field] === entity.entityValue);
+      const kpis = aggregateKPIs(entityData);
 
-    // Calculate KPIs for each group
-    const result = Object.entries(grouped).map(([groupValue, records]) => {
-      const kpis = aggregateKPIs(records);
       return {
-        groupBy: groupValue,
-        value: kpis.premium,
+        ...entity,
         kpis,
+        recordCount: entityData.length,
       };
-    }).sort((a, b) => b.value - a.value);
+    }).filter(Boolean) as Array<ComparisonEntity & { kpis: ReturnType<typeof aggregateKPIs>; recordCount: number }>;
+  }, [filteredData, comparisonEntities]);
 
-    return result;
-  }, [data, groupBy]);
+  const handleAddEntity = (entityValue: string) => {
+    if (comparisonEntities.length >= 8) return;
+    
+    const newEntity: ComparisonEntity = {
+      id: `${groupBy}-${entityValue}-${Date.now()}`,
+      groupBy,
+      entityValue,
+      label: entityValue,
+    };
 
-  // Filter and sort analytics data
-  const filteredAndSortedAnalyticsData = useMemo(() => {
-    // First filter by search term
-    let filtered = analyticsData;
-    if (tableSearchTerm.trim()) {
-      filtered = analyticsData.filter(item => 
-        item.groupBy.toLowerCase().includes(tableSearchTerm.toLowerCase())
-      );
+    // Check if already exists
+    const exists = comparisonEntities.some(
+      e => e.groupBy === groupBy && e.entityValue === entityValue
+    );
+    
+    if (!exists) {
+      setComparisonEntities([...comparisonEntities, newEntity]);
+      setEntitySearchTerm('');
     }
+  };
 
-    // Then sort based on selected option
-    const sorted = [...filtered].sort((a, b) => {
-      switch (sortBy) {
-        case 'premium-asc':
-          return a.kpis.premium - b.kpis.premium;
-        case 'premium-desc':
-          return b.kpis.premium - a.kpis.premium;
-        case 'lossRatio-asc':
-          return a.kpis.lossRatio - b.kpis.lossRatio;
-        case 'lossRatio-desc':
-          return b.kpis.lossRatio - a.kpis.lossRatio;
-        case 'combinedRatio-asc':
-          return a.kpis.combinedRatio - b.kpis.combinedRatio;
-        case 'combinedRatio-desc':
-          return b.kpis.combinedRatio - a.kpis.combinedRatio;
-        case 'accounts-asc':
-          return a.kpis.numberOfAccounts - b.kpis.numberOfAccounts;
-        case 'accounts-desc':
-          return b.kpis.numberOfAccounts - a.kpis.numberOfAccounts;
-        case 'name-asc':
-          return a.groupBy.localeCompare(b.groupBy);
-        case 'name-desc':
-          return b.groupBy.localeCompare(a.groupBy);
-        case 'oldest':
-          // For UY, sort by year ascending (oldest first)
-          if (groupBy === 'uy') {
-            const yearA = parseInt(a.groupBy) || 0;
-            const yearB = parseInt(b.groupBy) || 0;
-            return yearA - yearB;
-          }
-          // For other fields, sort alphabetically ascending
-          return a.groupBy.localeCompare(b.groupBy);
-        case 'newest':
-          // For UY, sort by year descending (newest first)
-          if (groupBy === 'uy') {
-            const yearA = parseInt(a.groupBy) || 0;
-            const yearB = parseInt(b.groupBy) || 0;
-            return yearB - yearA;
-          }
-          // For other fields, sort alphabetically descending
-          return b.groupBy.localeCompare(a.groupBy);
-        default:
-          return 0;
-      }
-    });
-
-    return sorted;
-  }, [analyticsData, tableSearchTerm, sortBy, groupBy]);
-
-  // Get data for comparison
-  const comparisonData = useMemo(() => {
-    if (!compareMode || selectedEntities.length === 0) return [];
-
-    return selectedEntities.map(entity => {
-      const entityData = data.filter(d => {
-        const fieldMap: Record<string, keyof ReinsuranceData> = {
-          'uy': 'uy',
-          'extType': 'extType',
-          'broker': 'broker',
-          'cedant': 'cedant',
-          'orgInsuredTrtyName': 'orgInsuredTrtyName',
-          'countryName': 'countryName',
-          'region': 'region',
-          'hub': 'hub',
-        };
-        const field = fieldMap[groupBy];
-        return field ? d[field] === entity : false;
-      });
-
-      return {
-        entity,
-        kpis: aggregateKPIs(entityData),
-      };
-    });
-  }, [data, groupBy, compareMode, selectedEntities]);
-
-  const handleEntityToggle = (entity: string) => {
-    if (selectedEntities.includes(entity)) {
-      setSelectedEntities(selectedEntities.filter(e => e !== entity));
-    } else if (selectedEntities.length < 3) {
-      setSelectedEntities([...selectedEntities, entity]);
-    }
+  const handleRemoveEntity = (id: string) => {
+    setComparisonEntities(comparisonEntities.filter(e => e.id !== id));
   };
 
   const handleGroupByChange = (value: string) => {
     setGroupBy(value);
-    setSelectedEntities([]);
     setEntitySearchTerm('');
   };
 
-
   const exportToCSV = () => {
+    if (comparisonData.length === 0) return;
+
     const csvContent = [
-      ['Group By', 'Premium', 'Paid Claims', 'Outstanding Claims', 'Incurred Claims', 'Expense', 'Loss Ratio %', 'Expense Ratio %', 'Combined Ratio %', 'Accounts', 'Avg Max Liability'],
-      ...analyticsData.map(row => [
-        row.groupBy,
-        row.kpis.premium.toString(),
-        row.kpis.paidClaims.toString(),
-        row.kpis.outstandingClaims.toString(),
-        row.kpis.incurredClaims.toString(),
-        row.kpis.expense.toString(),
-        row.kpis.lossRatio.toString(),
-        row.kpis.expenseRatio.toString(),
-        row.kpis.combinedRatio.toString(),
-        row.kpis.numberOfAccounts.toString(),
-        row.kpis.avgMaxLiability.toString(),
+      ['Entity', 'Label', 'Premium', 'Paid Claims', 'Outstanding Claims', 'Incurred Claims', 'Expense', 'Loss Ratio %', 'Expense Ratio %', 'Combined Ratio %', 'Accounts', 'Avg Max Liability'],
+      ...comparisonData.map(entity => [
+        entity.label,
+        entity.label,
+        entity.kpis.numberOfAccounts.toString(),
+        entity.kpis.premium.toString(),
+        entity.kpis.paidClaims.toString(),
+        entity.kpis.outstandingClaims.toString(),
+        entity.kpis.incurredClaims.toString(),
+        entity.kpis.expense.toString(),
+        entity.kpis.lossRatio.toString(),
+        entity.kpis.expenseRatio.toString(),
+        entity.kpis.combinedRatio.toString(),
+        entity.kpis.avgMaxLiability.toString(),
       ])
     ].map(row => row.join(',')).join('\n');
 
@@ -248,25 +313,160 @@ export default function AnalyticsPage() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `analytics_${groupBy}_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `comparison_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
 
-  const groupByLabels: Record<string, { label: string; description: string }> = {
-    'uy': { label: 'Underwriting Year', description: 'Group data by the year the policy was underwritten' },
-    'extType': { label: 'Extension Type', description: 'Group data by the type of policy extension' },
-    'broker': { label: 'Broker', description: 'Group data by insurance broker' },
-    'cedant': { label: 'Cedant', description: 'Group data by the cedant (company ceding the risk)' },
-    'orgInsuredTrtyName': { label: 'Organization/Insured/Treaty', description: 'Group data by the organization, insured party, or treaty name' },
-    'countryName': { label: 'Country', description: 'Group data by country' },
-    'region': { label: 'Region', description: 'Group data by geographical region' },
-    'hub': { label: 'Hub', description: 'Group data by business hub' },
-  };
+  // Find max values for normalization in visualizations
+  const maxValues = useMemo(() => {
+    if (comparisonData.length === 0) return null;
+
+    return {
+      premium: Math.max(...comparisonData.map(d => d.kpis.premium)),
+      lossRatio: Math.max(...comparisonData.map(d => d.kpis.lossRatio)),
+      combinedRatio: Math.max(...comparisonData.map(d => d.kpis.combinedRatio)),
+      accounts: Math.max(...comparisonData.map(d => d.kpis.numberOfAccounts)),
+      incurredClaims: Math.max(...comparisonData.map(d => d.kpis.incurredClaims)),
+    };
+  }, [comparisonData]);
+
+  // Calculate total across all years for percentage calculation
+  const totalAllYears = useMemo(() => {
+    if (groupBy !== 'uy') return null;
+    
+    // Get all UY values from filtered data
+    const allUYs = [...new Set(filteredData.map(d => d.uy).filter(Boolean))];
+    const totalPremium = filteredData.reduce((sum, d) => sum + (d.grsPremKD || 0), 0);
+    
+    return {
+      allUYs,
+      totalPremium,
+    };
+  }, [filteredData, groupBy]);
 
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-background">
+        {/* Top Filter Panel with Comparison Entities */}
+        <TopFilterPanel
+          data={data}
+          filters={filters}
+          onFiltersChange={setFilters}
+          onClearFilters={clearFilters}
+        >
+          {/* Select Entities to Compare Section */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Select Entities to Compare</h3>
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 flex-1">
+                  <label className="text-sm font-medium whitespace-nowrap">Group by:</label>
+                  <Select value={groupBy} onValueChange={handleGroupByChange}>
+                    <SelectTrigger className="w-64">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(groupByLabels).map(([value, { label }]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center gap-2 flex-1">
+                  <Input
+                    placeholder={`Search ${groupByLabels[groupBy]?.label || 'entities'}...`}
+                    value={entitySearchTerm}
+                    onChange={(e) => setEntitySearchTerm(e.target.value)}
+                    className="max-w-sm"
+                  />
+                  {entitySearchTerm && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEntitySearchTerm('')}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-xs text-muted-foreground">
+                  Available: {filteredGroupByOptions.length} entities • Selected: {comparisonEntities.length}/8
+                </div>
+                <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-3 border rounded-md bg-muted/20">
+                  {filteredGroupByOptions.length === 0 ? (
+                    <div className="text-sm text-muted-foreground py-2 w-full text-center">
+                      {entitySearchTerm ? `No entities found for "${entitySearchTerm}"` : 'No entities available'}
+                    </div>
+                  ) : (
+                    filteredGroupByOptions.map(option => {
+                      const isSelected = comparisonEntities.some(
+                        e => e.groupBy === groupBy && e.entityValue === option
+                      );
+                      return (
+                        <Button
+                          key={option}
+                          variant={isSelected ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            if (isSelected) {
+                              setComparisonEntities(comparisonEntities.filter(
+                                e => !(e.groupBy === groupBy && e.entityValue === option)
+                              ));
+                            } else {
+                              handleAddEntity(option);
+                            }
+                          }}
+                          disabled={!isSelected && comparisonEntities.length >= 8}
+                          className="relative"
+                        >
+                          {option}
+                          {isSelected && (
+                            <span className="ml-1">✓</span>
+                          )}
+                        </Button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Selected Entities */}
+              {comparisonEntities.length > 0 && (
+                <div className="space-y-2 pt-4 border-t">
+                  <div className="text-sm font-medium">Selected for Comparison:</div>
+                  <div className="flex flex-wrap gap-2">
+                    {comparisonEntities.map((entity) => (
+                      <Badge
+                        key={entity.id}
+                        variant="secondary"
+                        className="px-3 py-1.5 text-sm flex items-center gap-2"
+                      >
+                        <span className="font-medium">{groupByLabels[entity.groupBy]?.label}:</span>
+                        <span>{entity.label}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                          onClick={() => handleRemoveEntity(entity.id)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </TopFilterPanel>
+
         <div className="container mx-auto px-4 py-8">
           {/* Header */}
           <motion.div
@@ -277,667 +477,340 @@ export default function AnalyticsPage() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-4xl font-bold text-foreground mb-2">
-                  Analytics Explorer
+                <h1 className="text-4xl font-bold text-foreground mb-2 flex items-center gap-3">
+                  <GitCompare className="h-8 w-8 text-primary" />
+                  Comparative Analytics
                 </h1>
-                <p className="text-muted-foreground">
-                  Deep dive into your reinsurance data with flexible grouping and comparison tools
-                </p>
               </div>
+              {isAdmin && comparisonData.length > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={exportToCSV}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Export CSV
+                </Button>
+              )}
             </div>
           </motion.div>
 
-          {/* Analysis Controls */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="mb-8"
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  Analysis Controls
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      <p>Use these controls to group and analyze your data. Select a grouping dimension and optionally compare up to 3 entities side-by-side.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-wrap gap-4 items-center">
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium">Group by:</label>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div>
-                          <Select value={groupBy} onValueChange={handleGroupByChange}>
-                            <SelectTrigger className="w-56">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(groupByLabels).map(([value, { label }]) => (
-                                <SelectItem key={value} value={value}>
-                                  {label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{groupByLabels[groupBy]?.description || 'Select how to group the data'}</p>
-                      </TooltipContent>
-                    </Tooltip>
+          {/* Comparison Results */}
+          {comparisonData.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="space-y-6"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-foreground">Comparison Results</h2>
+                  <div className="text-muted-foreground text-sm mt-1">
+                    <CurrencyLabel />
                   </div>
-
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={compareMode ? "default" : "outline"}
-                        onClick={() => setCompareMode(!compareMode)}
-                        className="flex items-center gap-2"
-                      >
-                        <BarChart3 className="h-4 w-4" />
-                        Compare Mode
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Enable comparison mode to analyze up to 3 entities side-by-side. This helps identify differences in performance metrics.</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        onClick={exportToCSV}
-                        className="flex items-center gap-2"
-                      >
-                        <Download className="h-4 w-4" />
-                        Export CSV
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Download the current analytics data as a CSV file for further analysis in Excel or other tools.</p>
-                    </TooltipContent>
-                  </Tooltip>
                 </div>
+              </div>
 
-                {compareMode && (
-                  <div className="space-y-4 pt-4 border-t">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium flex items-center gap-2">
-                        Select up to 3 entities to compare:
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Select entities from the list below to compare their key performance indicators side-by-side.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          placeholder={`Search ${groupByLabels[groupBy]?.label || groupBy}...`}
-                          value={entitySearchTerm}
-                          onChange={(e) => setEntitySearchTerm(e.target.value)}
-                          className="max-w-sm"
-                        />
-                        {entitySearchTerm && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEntitySearchTerm('')}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <div className="text-xs text-muted-foreground">
-                        Showing {filteredGroupByOptions.length} of {groupByOptions.length} options
-                      </div>
-                      <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 border rounded-md">
-                        {filteredGroupByOptions.length === 0 ? (
-                          <div className="text-sm text-muted-foreground py-2 w-full text-center">
-                            {entitySearchTerm ? `No options found for "${entitySearchTerm}"` : 'No options available'}
-                          </div>
-                        ) : (
-                          filteredGroupByOptions.map(option => (
-                            <Tooltip key={option}>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant={selectedEntities.includes(option) ? "default" : "outline"}
-                                  size="sm"
-                                  onClick={() => handleEntityToggle(option)}
-                                  disabled={!selectedEntities.includes(option) && selectedEntities.length >= 3}
-                                  className="relative"
-                                >
-                                  {option}
-                                  {selectedEntities.includes(option) && (
-                                    <span className="ml-1">✓</span>
-                                  )}
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>
-                                  {selectedEntities.includes(option) 
-                                    ? 'Click to remove from comparison' 
-                                    : selectedEntities.length >= 3 
-                                    ? 'Maximum 3 entities can be compared at once' 
-                                    : 'Click to add to comparison'}
-                                </p>
-                              </TooltipContent>
-                            </Tooltip>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Results */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-          >
-            <Tabs defaultValue="table" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="table">
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  Aggregated Table
-                </TabsTrigger>
-                {compareMode && (
-                  <TabsTrigger value="compare">
-                    <TrendingUp className="h-4 w-4 mr-2" />
-                    Comparison
-                  </TabsTrigger>
-                )}
-              </TabsList>
-
-              <TabsContent value="table">
-                <Card>
-                  <CardHeader>
-                    <div className="flex flex-col gap-4">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="flex items-center gap-2">
-                          Aggregated Data by {groupByLabels[groupBy]?.label || groupBy}
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-xs">
-                              <p>This table shows aggregated key performance indicators grouped by {groupByLabels[groupBy]?.label.toLowerCase() || groupBy}. Each row represents one group with calculated totals and ratios.</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </CardTitle>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            placeholder={`Search ${groupByLabels[groupBy]?.label || groupBy}...`}
-                            value={tableSearchTerm}
-                            onChange={(e) => setTableSearchTerm(e.target.value)}
-                            className="max-w-sm"
-                          />
-                          {tableSearchTerm && (
+              {/* Component 1: KPI Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <AnimatePresence>
+                  {comparisonData.map((entity, index) => (
+                    <motion.div
+                      key={entity.id}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ duration: 0.3, delay: index * 0.1 }}
+                    >
+                      <Card className="h-full border-2 hover:border-primary/50 transition-colors">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-lg truncate">{entity.label}</CardTitle>
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => setTableSearchTerm('')}
+                              className="h-6 w-6 p-0"
+                              onClick={() => handleRemoveEntity(entity.id)}
                             >
-                              <X className="h-4 w-4" />
+                              <X className="h-3 w-3" />
                             </Button>
-                          )}
-                        </div>
-                      </div>
-                      <CardDescription className="text-xs text-muted-foreground/80">
-                        All monetary values shown in KWD.
-                      </CardDescription>
-                      
-                      {/* Sort Controls */}
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <div className="flex items-center gap-2">
-                          <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">Sort by:</span>
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Select value={sortBy} onValueChange={setSortBy}>
-                                <SelectTrigger className="w-[200px]">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="premium-desc">
-                                    <div className="flex items-center gap-2">
-                                      <ArrowDown className="h-3 w-3" />
-                                      Premium (High to Low)
-                                    </div>
-                                  </SelectItem>
-                                  <SelectItem value="premium-asc">
-                                    <div className="flex items-center gap-2">
-                                      <ArrowUp className="h-3 w-3" />
-                                      Premium (Low to High)
-                                    </div>
-                                  </SelectItem>
-                                  <SelectItem value="lossRatio-desc">
-                                    <div className="flex items-center gap-2">
-                                      <ArrowDown className="h-3 w-3" />
-                                      Loss Ratio (High to Low)
-                                    </div>
-                                  </SelectItem>
-                                  <SelectItem value="lossRatio-asc">
-                                    <div className="flex items-center gap-2">
-                                      <ArrowUp className="h-3 w-3" />
-                                      Loss Ratio (Low to High)
-                                    </div>
-                                  </SelectItem>
-                                  <SelectItem value="combinedRatio-desc">
-                                    <div className="flex items-center gap-2">
-                                      <ArrowDown className="h-3 w-3" />
-                                      Combined Ratio (High to Low)
-                                    </div>
-                                  </SelectItem>
-                                  <SelectItem value="combinedRatio-asc">
-                                    <div className="flex items-center gap-2">
-                                      <ArrowUp className="h-3 w-3" />
-                                      Combined Ratio (Low to High)
-                                    </div>
-                                  </SelectItem>
-                                  <SelectItem value="accounts-desc">
-                                    <div className="flex items-center gap-2">
-                                      <ArrowDown className="h-3 w-3" />
-                                      Accounts (High to Low)
-                                    </div>
-                                  </SelectItem>
-                                  <SelectItem value="accounts-asc">
-                                    <div className="flex items-center gap-2">
-                                      <ArrowUp className="h-3 w-3" />
-                                      Accounts (Low to High)
-                                    </div>
-                                  </SelectItem>
-                                  <SelectItem value="name-asc">
-                                    <div className="flex items-center gap-2">
-                                      <ArrowUp className="h-3 w-3" />
-                                      Name (A to Z)
-                                    </div>
-                                  </SelectItem>
-                                  <SelectItem value="name-desc">
-                                    <div className="flex items-center gap-2">
-                                      <ArrowDown className="h-3 w-3" />
-                                      Name (Z to A)
-                                    </div>
-                                  </SelectItem>
-                                  {groupBy === 'uy' && (
-                                    <>
-                                      <SelectItem value="oldest">
-                                        <div className="flex items-center gap-2">
-                                          <Calendar className="h-3 w-3" />
-                                          Oldest Year First
-                                        </div>
-                                      </SelectItem>
-                                      <SelectItem value="newest">
-                                        <div className="flex items-center gap-2">
-                                          <Calendar className="h-3 w-3" />
-                                          Newest Year First
-                                        </div>
-                                      </SelectItem>
-                                    </>
-                                  )}
-                                </SelectContent>
-                              </Select>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Choose how to sort the table data. Options include sorting by premium, ratios, accounts, name, or date (for years).</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                        <div className="text-xs text-muted-foreground ml-auto">
-                          Showing {filteredAndSortedAnalyticsData.length} of {analyticsData.length} {analyticsData.length === 1 ? 'result' : 'results'}
-                        </div>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {filteredAndSortedAnalyticsData.length === 0 ? (
-                      <div className="text-center py-16 text-muted-foreground">
-                        <p>{tableSearchTerm ? 'No results found for your search' : 'No data available for the selected grouping'}</p>
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="w-12">#</TableHead>
-                              <TableHead>
-                                <div className="flex items-center gap-1">
-                                  Group
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>The {groupByLabels[groupBy]?.label.toLowerCase() || 'grouping'} value for this row</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </div>
-                              </TableHead>
-                              <TableHead className="text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                  Premium
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Total premium amount for this group</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </div>
-                              </TableHead>
-                              <TableHead className="text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                  Paid Claims
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Total claims that have been paid out</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </div>
-                              </TableHead>
-                              <TableHead className="text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                  Outstanding Claims
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Claims that are reported but not yet paid</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </div>
-                              </TableHead>
-                              <TableHead className="text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                  Incurred Claims
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Total of paid claims plus outstanding claims</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </div>
-                              </TableHead>
-                              <TableHead className="text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                  Expense
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Total acquisition and operational expenses</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </div>
-                              </TableHead>
-                              <TableHead className="text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                  Loss Ratio
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Incurred claims divided by premium. Green: &lt;80%, Yellow: 80-100%, Red: &gt;100%</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </div>
-                              </TableHead>
-                              <TableHead className="text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                  Expense Ratio
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Expenses divided by premium. Green: &lt;20%, Yellow: 20-30%, Red: &gt;30%</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </div>
-                              </TableHead>
-                              <TableHead className="text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                  Combined Ratio
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Loss ratio plus expense ratio. Green: &lt;90%, Yellow: 90-100%, Red: &gt;100%</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </div>
-                              </TableHead>
-                              <TableHead className="text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                  Accounts
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Number of accounts/policies in this group</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </div>
-                              </TableHead>
-                              <TableHead className="text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                  Avg Max Liability
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Average maximum liability across all accounts in this group</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </div>
-                              </TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {filteredAndSortedAnalyticsData.map((row, index) => (
-                              <motion.tr
-                                key={row.groupBy}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.3, delay: index * 0.05 }}
-                                className="hover:bg-muted/50"
-                              >
-                                <TableCell className="w-12 text-center font-medium text-muted-foreground">
-                                  {index + 1}
-                                </TableCell>
-                                <TableCell className="font-medium">
-                                  {row.groupBy}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  {formatKDNumeric(row.kpis.premium)}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  {formatKDNumeric(row.kpis.paidClaims)}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  {formatKDNumeric(row.kpis.outstandingClaims)}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  {formatKDNumeric(row.kpis.incurredClaims)}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  {formatKDNumeric(row.kpis.expense)}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <span className={`${
-                                    row.kpis.lossRatio > 100 ? 'text-red-600' : 
-                                    row.kpis.lossRatio > 80 ? 'text-yellow-600' : 
-                                    'text-green-600'
-                                  }`}>
-                                    {formatPct(row.kpis.lossRatio)}
-                                  </span>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <span className={`${
-                                    row.kpis.expenseRatio > 30 ? 'text-red-600' : 
-                                    row.kpis.expenseRatio > 20 ? 'text-yellow-600' : 
-                                    'text-green-600'
-                                  }`}>
-                                    {formatPct(row.kpis.expenseRatio)}
-                                  </span>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <span className={`${
-                                    row.kpis.combinedRatio > 100 ? 'text-red-600' : 
-                                    row.kpis.combinedRatio > 90 ? 'text-yellow-600' : 
-                                    'text-green-600'
-                                  }`}>
-                                    {formatPct(row.kpis.combinedRatio)}
-                                  </span>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  {formatNumber(row.kpis.numberOfAccounts)}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  {formatKDNumeric(row.kpis.avgMaxLiability)}
-                                </TableCell>
-                              </motion.tr>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
+                          </div>
+                          <CardDescription className="text-xs">
+                            {groupByLabels[entity.groupBy]?.label} • {formatNumber(entity.recordCount)} records
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-muted-foreground">Premium</span>
+                              <span className="font-semibold text-sm">{formatCurrencyNumeric(entity.kpis.premium)}</span>
+                            </div>
+                            {maxValues && (
+                              <div className="w-full bg-muted rounded-full h-1.5">
+                                <div
+                                  className="bg-primary h-1.5 rounded-full transition-all"
+                                  style={{ width: `${(entity.kpis.premium / maxValues.premium) * 100}%` }}
+                                />
+                              </div>
+                            )}
+                          </div>
 
-              {compareMode && (
-                <TabsContent value="compare">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        Entity Comparison
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs">
-                            <p>Compare key performance indicators for up to 3 selected entities side-by-side to identify performance differences.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {comparisonData.length === 0 ? (
-                        <div className="text-center py-16 text-muted-foreground">
-                          <p>Select entities above to compare</p>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {comparisonData.map((entity, index) => (
-                            <motion.div
-                              key={entity.entity}
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ duration: 0.3, delay: index * 0.1 }}
-                            >
-                              <Card>
-                                <CardHeader>
-                                  <CardTitle className="text-lg">{entity.entity}</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-2">
-                                  <div className="flex justify-between">
-                                    <span className="text-sm text-muted-foreground">Premium:</span>
-                                    <span className="font-medium">{formatKD(entity.kpis.premium)}</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-sm text-muted-foreground">Loss Ratio:</span>
-                                    <span className={`font-medium ${
-                                      entity.kpis.lossRatio > 100 ? 'text-red-600' : 
-                                      entity.kpis.lossRatio > 80 ? 'text-yellow-600' : 
-                                      'text-green-600'
-                                    }`}>
-                                      {formatPct(entity.kpis.lossRatio)}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-sm text-muted-foreground">Combined Ratio:</span>
-                                    <span className={`font-medium ${
-                                      entity.kpis.combinedRatio > 100 ? 'text-red-600' : 
-                                      entity.kpis.combinedRatio > 90 ? 'text-yellow-600' : 
-                                      'text-green-600'
-                                    }`}>
-                                      {formatPct(entity.kpis.combinedRatio)}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-sm text-muted-foreground">Accounts:</span>
-                                    <span className="font-medium">{formatNumber(entity.kpis.numberOfAccounts)}</span>
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            </motion.div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-muted-foreground">Loss Ratio</span>
+                              <span className={`font-semibold text-sm ${
+                                entity.kpis.lossRatio > 100 ? 'text-red-600' : 
+                                entity.kpis.lossRatio > 80 ? 'text-yellow-600' : 
+                                'text-green-600'
+                              }`}>
+                                {formatPct(entity.kpis.lossRatio)}
+                              </span>
+                            </div>
+                            {maxValues && (
+                              <div className="w-full bg-muted rounded-full h-1.5">
+                                <div
+                                  className={`h-1.5 rounded-full transition-all ${
+                                    entity.kpis.lossRatio > 100 ? 'bg-red-600' : 
+                                    entity.kpis.lossRatio > 80 ? 'bg-yellow-600' : 
+                                    'bg-green-600'
+                                  }`}
+                                  style={{ width: `${Math.min((entity.kpis.lossRatio / Math.max(maxValues.lossRatio, 100)) * 100, 100)}%` }}
+                                />
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-muted-foreground">Combined Ratio</span>
+                              <span className={`font-semibold text-sm ${
+                                entity.kpis.combinedRatio > 100 ? 'text-red-600' : 
+                                entity.kpis.combinedRatio > 90 ? 'text-yellow-600' : 
+                                'text-green-600'
+                              }`}>
+                                {formatPct(entity.kpis.combinedRatio)}
+                              </span>
+                            </div>
+                            {maxValues && (
+                              <div className="w-full bg-muted rounded-full h-1.5">
+                                <div
+                                  className={`h-1.5 rounded-full transition-all ${
+                                    entity.kpis.combinedRatio > 100 ? 'bg-red-600' : 
+                                    entity.kpis.combinedRatio > 90 ? 'bg-yellow-600' : 
+                                    'bg-green-600'
+                                  }`}
+                                  style={{ width: `${Math.min((entity.kpis.combinedRatio / Math.max(maxValues.combinedRatio, 100)) * 100, 100)}%` }}
+                                />
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="pt-2 border-t space-y-1.5">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Accounts:</span>
+                              <span className="font-medium">{formatNumber(entity.kpis.numberOfAccounts)}</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Incurred Claims:</span>
+                              <span className="font-medium">{formatCurrencyNumeric(entity.kpis.incurredClaims)}</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Expense:</span>
+                              <span className="font-medium">{formatCurrencyNumeric(entity.kpis.expense)}</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+
+              {/* Component 2: Detailed Comparison Table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Comparative Analytics</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-48">Item</TableHead>
+                          {comparisonData.map((entity) => (
+                            <TableHead key={entity.id} className="text-center min-w-[150px]">
+                              {entity.label}
+                            </TableHead>
                           ))}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell className="font-medium">Number of Accounts</TableCell>
+                          {comparisonData.map((entity) => (
+                            <TableCell key={entity.id} className="text-center font-mono text-sm">
+                              {formatNumber(entity.kpis.numberOfAccounts)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Premium</TableCell>
+                          {comparisonData.map((entity) => (
+                            <TableCell key={entity.id} className="text-center font-mono text-sm">
+                              {formatCurrencyNumeric(entity.kpis.premium)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Paid Claims</TableCell>
+                          {comparisonData.map((entity) => (
+                            <TableCell key={entity.id} className="text-center font-mono text-sm">
+                              {formatCurrencyNumeric(entity.kpis.paidClaims)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Outstanding Claims</TableCell>
+                          {comparisonData.map((entity) => (
+                            <TableCell key={entity.id} className="text-center font-mono text-sm">
+                              {formatCurrencyNumeric(entity.kpis.outstandingClaims)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Incurred Claims</TableCell>
+                          {comparisonData.map((entity) => (
+                            <TableCell key={entity.id} className="text-center font-mono text-sm">
+                              {formatCurrencyNumeric(entity.kpis.incurredClaims)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Acquisition Cost</TableCell>
+                          {comparisonData.map((entity) => (
+                            <TableCell key={entity.id} className="text-center font-mono text-sm">
+                              {formatCurrencyNumeric(entity.kpis.expense)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Loss Ratio</TableCell>
+                          {comparisonData.map((entity) => (
+                            <TableCell key={entity.id} className={`text-center font-semibold ${
+                              entity.kpis.lossRatio > 100 ? 'text-red-600' : 
+                              entity.kpis.lossRatio > 80 ? 'text-yellow-600' : 
+                              'text-green-600'
+                            }`}>
+                              {formatPct(entity.kpis.lossRatio)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Acquisition Ratio</TableCell>
+                          {comparisonData.map((entity) => (
+                            <TableCell key={entity.id} className={`text-center font-semibold ${
+                              entity.kpis.expenseRatio > 30 ? 'text-red-600' : 
+                              entity.kpis.expenseRatio > 20 ? 'text-yellow-600' : 
+                              'text-green-600'
+                            }`}>
+                              {formatPct(entity.kpis.expenseRatio)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Combined Ratio</TableCell>
+                          {comparisonData.map((entity) => (
+                            <TableCell key={entity.id} className={`text-center font-semibold ${
+                              entity.kpis.combinedRatio > 100 ? 'text-red-600' : 
+                              entity.kpis.combinedRatio > 90 ? 'text-yellow-600' : 
+                              'text-green-600'
+                            }`}>
+                              {formatPct(entity.kpis.combinedRatio)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Avg Max Liability</TableCell>
+                          {comparisonData.map((entity) => (
+                            <TableCell key={entity.id} className="text-center font-mono text-sm">
+                              {formatCurrencyNumeric(entity.kpis.avgMaxLiability)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Component 3: Visual Bar Comparison */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Visual Comparison</CardTitle>
+                  <CardDescription>Premium bars with stacked claims and loss ratio line</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {comparisonData.length > 0 ? (
+                    <ComparisonBarChart data={comparisonData} />
+                  ) : (
+                    <div className="flex items-center justify-center h-96 text-muted-foreground">
+                      Add entities to compare to see the visualization
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Component 4: Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {comparisonData.map((entity) => (
+                  <Card key={entity.id} className="bg-gradient-to-br from-background to-muted/30">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">{entity.label}</CardTitle>
+                      <CardDescription className="text-xs">
+                        {groupByLabels[entity.groupBy]?.label}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <div className="text-muted-foreground">Premium</div>
+                          <div className="font-semibold">{formatCurrencyNumeric(entity.kpis.premium)}</div>
                         </div>
-                      )}
+                        <div>
+                          <div className="text-muted-foreground">Accounts</div>
+                          <div className="font-semibold">{formatNumber(entity.kpis.numberOfAccounts)}</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Loss Ratio</div>
+                          <div className={`font-semibold ${
+                            entity.kpis.lossRatio > 100 ? 'text-red-600' : 
+                            entity.kpis.lossRatio > 80 ? 'text-yellow-600' : 
+                            'text-green-600'
+                          }`}>
+                            {formatPct(entity.kpis.lossRatio)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Combined</div>
+                          <div className={`font-semibold ${
+                            entity.kpis.combinedRatio > 100 ? 'text-red-600' : 
+                            entity.kpis.combinedRatio > 90 ? 'text-yellow-600' : 
+                            'text-green-600'
+                          }`}>
+                            {formatPct(entity.kpis.combinedRatio)}
+                          </div>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
-                </TabsContent>
-              )}
-            </Tabs>
-          </motion.div>
-
-          {/* Loading State */}
-          {isLoading && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="text-center py-16"
-            >
-              <div className="max-w-md mx-auto">
-                <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
-                  <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                </div>
-                <h3 className="text-lg font-semibold text-foreground mb-2">
-                  Loading Analytics Data
-                </h3>
-                <p className="text-muted-foreground mb-4">
-                  Processing your reinsurance data for analytics...
-                </p>
+                ))}
               </div>
             </motion.div>
           )}
 
           {/* Empty State */}
-          {!isLoading && data.length === 0 && (
+          {!isLoading && comparisonData.length === 0 && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -949,10 +822,32 @@ export default function AnalyticsPage() {
                   <TrendingUp className="w-8 h-8 text-muted-foreground" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">
-                  No Data Available
+                  No Comparisons Selected
                 </h3>
                 <p className="text-muted-foreground mb-4">
-                  Use the filters to select data, or check if data is loaded.
+                  Select entities above to start comparing their performance metrics side-by-side.
+                </p>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Loading State */}
+          {isLoading && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5 }}
+              className="text-center py-16"
+            >
+              <div className="max-w-md mx-auto">
+                <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
+                  <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  Loading Comparison Data
+                </h3>
+                <p className="text-muted-foreground">
+                  Processing your reinsurance data...
                 </p>
               </div>
             </motion.div>

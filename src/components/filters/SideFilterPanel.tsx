@@ -3,15 +3,16 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  X, Filter, Calendar, Building2, Globe, Users, 
+  X, SlidersHorizontal, Calendar, Building2, Globe, Users, 
   MapPin, Briefcase, FileText, ChevronDown, ChevronUp,
-  Sparkles
+  Layers
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ReinsuranceData } from '@/lib/schema';
 import { SearchableSelect } from './SearchableSelect';
 
@@ -23,6 +24,10 @@ interface FilterState {
   cedant: string | null;
   region: string | null;
   hub: string | null;
+  class: string | null;
+  subClass: string | null;
+  showMonthly: boolean;
+  showQuarterly: boolean;
 }
 
 interface SideFilterPanelProps {
@@ -53,6 +58,14 @@ export function SideFilterPanel({
     const cedants = [...new Set(data.map(d => d.cedant).filter(Boolean))].sort();
     const regions = [...new Set(data.map(d => d.region).filter(Boolean))].sort();
     const hubs = [...new Set(data.map(d => d.hub).filter(Boolean))].sort();
+    const classes = [...new Set(data.map(d => d.className).filter(Boolean))].sort();
+    
+    // Subclasses filtered by selected class
+    const allSubClasses = [...new Set(data.map(d => d.subClass).filter(Boolean))].sort() as string[];
+    // If a class is selected, only show subclasses for that class
+    const subClasses = filters.class
+      ? [...new Set(data.filter(d => d.className === filters.class).map(d => d.subClass).filter(Boolean))].sort() as string[]
+      : allSubClasses;
 
     return {
       years,
@@ -62,12 +75,20 @@ export function SideFilterPanel({
       cedants,
       regions,
       hubs,
+      classes,
+      subClasses,
     };
-  }, [data]);
+  }, [data, filters.class]);
 
-  // Count active filters
+  // Count active filters (exclude boolean values)
   const activeFilterCount = useMemo(() => {
-    return Object.values(filters).filter(v => v !== null && v !== '').length;
+    return Object.entries(filters)
+      .filter(([key, value]) => 
+        key !== 'showMonthly' && 
+        key !== 'showQuarterly' && 
+        value !== null && 
+        value !== ''
+      ).length;
   }, [filters]);
 
   const toggleSection = (section: string) => {
@@ -80,8 +101,20 @@ export function SideFilterPanel({
     setExpandedSections(newExpanded);
   };
 
-  const handleFilterChange = (key: keyof FilterState, value: string | null) => {
-    onFiltersChange({ ...filters, [key]: value });
+  const handleFilterChange = (key: keyof FilterState, value: string | null | boolean) => {
+    const newFilters = { ...filters, [key]: value };
+    // Clear subclass when class changes
+    if (key === 'class') {
+      newFilters.subClass = null;
+    }
+    // Ensure only one of monthly/quarterly is selected
+    if (key === 'showMonthly' && value === true) {
+      newFilters.showQuarterly = false;
+    }
+    if (key === 'showQuarterly' && value === true) {
+      newFilters.showMonthly = false;
+    }
+    onFiltersChange(newFilters);
   };
 
   const FilterSection = ({ 
@@ -140,7 +173,11 @@ export function SideFilterPanel({
         aria-label="Toggle filters"
       >
         <div className="relative">
-          <Filter className="h-5 w-5" />
+          {isOpen ? (
+            <X className="h-5 w-5" />
+          ) : (
+            <SlidersHorizontal className="h-5 w-5" />
+          )}
           {activeFilterCount > 0 && (
             <span className="absolute -top-1 -right-1 h-4 w-4 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
               {activeFilterCount}
@@ -176,7 +213,7 @@ export function SideFilterPanel({
                 <div className="p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-primary/10">
-                      <Sparkles className="h-5 w-5 text-primary" />
+                      <SlidersHorizontal className="h-5 w-5 text-primary" />
                     </div>
                     <div>
                       <CardTitle className="text-lg font-bold">Filters</CardTitle>
@@ -222,6 +259,28 @@ export function SideFilterPanel({
                             Type: {filters.extType}
                             <button
                               onClick={() => handleFilterChange('extType', null)}
+                              className="ml-1 hover:text-destructive"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        )}
+                        {filters.class && (
+                          <Badge variant="secondary" className="gap-1">
+                            Class: {filters.class}
+                            <button
+                              onClick={() => handleFilterChange('class', null)}
+                              className="ml-1 hover:text-destructive"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        )}
+                        {filters.subClass && (
+                          <Badge variant="secondary" className="gap-1">
+                            Subclass: {filters.subClass}
+                            <button
+                              onClick={() => handleFilterChange('subClass', null)}
                               className="ml-1 hover:text-destructive"
                             >
                               <X className="h-3 w-3" />
@@ -301,12 +360,61 @@ export function SideFilterPanel({
                       options={filterOptions.years}
                       onChange={(val) => handleFilterChange('year', val)}
                     />
+                    
+                    {/* Breakdown Options - Monthly/Quarterly */}
+                    <div className="space-y-3 pt-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">Time Breakdown</Label>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="show-monthly"
+                            checked={filters.showMonthly}
+                            onCheckedChange={(checked) => handleFilterChange('showMonthly', checked === true)}
+                          />
+                          <Label htmlFor="show-monthly" className="text-sm font-medium cursor-pointer">
+                            Show Monthly Breakdown
+                          </Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="show-quarterly"
+                            checked={filters.showQuarterly}
+                            onCheckedChange={(checked) => handleFilterChange('showQuarterly', checked === true)}
+                          />
+                          <Label htmlFor="show-quarterly" className="text-sm font-medium cursor-pointer">
+                            Show Quarterly Breakdown
+                          </Label>
+                        </div>
+                      </div>
+                    </div>
+
                     <SearchableSelect
-                      label="Extension Type"
+                      label="Extract Type"
                       value={filters.extType}
                       options={filterOptions.extTypes}
                       onChange={(val) => handleFilterChange('extType', val)}
                     />
+                    <SearchableSelect
+                      label="Class"
+                      value={filters.class}
+                      options={filterOptions.classes.filter((c): c is string => c !== undefined)}
+                      onChange={(val) => handleFilterChange('class', val)}
+                    />
+                    {filters.class ? (
+                      <SearchableSelect
+                        label="Subclass"
+                        value={filters.subClass}
+                        options={filterOptions.subClasses.filter((c): c is string => c !== undefined)}
+                        onChange={(val) => handleFilterChange('subClass', val)}
+                      />
+                    ) : (
+                      <div className="space-y-2">
+                        <Label className="text-xs font-medium text-muted-foreground">Subclass</Label>
+                        <div className="h-9 flex items-center text-sm text-muted-foreground px-3 border border-border rounded-md bg-muted/50">
+                          Select a class first
+                        </div>
+                      </div>
+                    )}
                   </FilterSection>
 
                   <Separator />

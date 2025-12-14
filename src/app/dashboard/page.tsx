@@ -6,9 +6,6 @@ import { SideFilterPanel } from '@/components/filters/SideFilterPanel';
 import { ChatBot } from '@/components/chat/ChatBot';
 import { KpiStrip } from '@/components/kpi/KPICard';
 import { UyPerformanceTable } from '@/components/tables/UnderwritingYearPerformanceTable';
-import { PremiumIncurredLineChart } from '@/components/charts/PremiumIncurredChart';
-import { LossRatioBarChart } from '@/components/charts/LossRatioChart';
-import { PremiumByExtTypeDonut } from '@/components/charts/PremiumByExtensionTypeChart';
 import { TopCedantsList } from '@/components/charts/TopCedantsChart';
 import { TopBrokersList } from '@/components/charts/TopBrokersChart';
 import { ReinsuranceData } from '@/lib/schema';
@@ -22,6 +19,10 @@ interface FilterState {
   cedant: string | null;
   region: string | null;
   hub: string | null;
+  class: string | null;
+  subClass: string | null;
+  showMonthly: boolean;
+  showQuarterly: boolean;
 }
 
 export default function DashboardPage() {
@@ -36,6 +37,10 @@ export default function DashboardPage() {
     cedant: null,
     region: null,
     hub: null,
+    class: null,
+    subClass: null,
+    showMonthly: false,
+    showQuarterly: false,
   });
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
 
@@ -57,7 +62,6 @@ export default function DashboardPage() {
           throw new Error('Invalid data structure received from API');
         }
         
-        console.log('Dashboard - Loaded all data:', dataResult.data.length, 'records');
         setAllData(dataResult.data);
         setData(dataResult.data); // Initially show all data
       } catch (error) {
@@ -100,15 +104,20 @@ export default function DashboardPage() {
         
         let filtered = dataResult.data;
         
-        // Apply client-side filters for extType and broker (not in API yet)
-        if (filters.extType) {
-          filtered = filtered.filter(d => d.extType === filters.extType);
+        // Apply client-side filters for extType, broker, class, and subClass (not in API yet)
+        if (filters.extType && Array.isArray(filters.extType) && filters.extType.length > 0) {
+          filtered = filtered.filter((d: ReinsuranceData) => d.extType && filters.extType!.includes(d.extType));
         }
         if (filters.broker) {
-          filtered = filtered.filter(d => d.broker === filters.broker);
+          filtered = filtered.filter((d: ReinsuranceData) => d.broker === filters.broker);
+        }
+        if (filters.class && Array.isArray(filters.class) && filters.class.length > 0) {
+          filtered = filtered.filter((d: ReinsuranceData) => d.className && filters.class!.includes(d.className));
+        }
+        if (filters.subClass && Array.isArray(filters.subClass) && filters.subClass.length > 0) {
+          filtered = filtered.filter((d: ReinsuranceData) => d.subClass && filters.subClass!.includes(d.subClass));
         }
         
-        console.log('Dashboard - Filtered data:', filtered.length, 'records');
         setData(filtered);
       } catch (error) {
         console.error('Failed to load filtered data:', error);
@@ -132,6 +141,10 @@ export default function DashboardPage() {
       cedant: null,
       region: null,
       hub: null,
+      class: null,
+      subClass: null,
+      showMonthly: false,
+      showQuarterly: false,
     });
   };
 
@@ -143,17 +156,6 @@ export default function DashboardPage() {
   // Calculate KPIs
   const kpiData = useMemo(() => {
     const kpis = aggregateKPIs(filteredData);
-    console.log('Dashboard - KPI Data:', {
-      premium: kpis.premium,
-      paidClaims: kpis.paidClaims,
-      outstandingClaims: kpis.outstandingClaims,
-      incurredClaims: kpis.incurredClaims,
-      expense: kpis.expense,
-      lossRatio: kpis.lossRatio,
-      expenseRatio: kpis.expenseRatio,
-      combinedRatio: kpis.combinedRatio,
-      numberOfAccounts: kpis.numberOfAccounts
-    });
     return kpis;
   }, [filteredData]);
 
@@ -189,17 +191,24 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-bold text-foreground mb-2">
-                Reinsurance Dashboard
+                General Overview
               </h1>
-              <p className="text-muted-foreground">
-                Comprehensive analytics and performance metrics for reinsurance operations
-              </p>
             </div>
-            {Object.values(filters).some(v => v !== null) && (
+            {Object.entries(filters).some(([key, value]) => 
+              key !== 'showMonthly' && 
+              key !== 'showQuarterly' && 
+              value !== null && 
+              value !== ''
+            ) && (
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">Active Filters</p>
                 <p className="text-lg font-semibold text-foreground">
-                  {Object.values(filters).filter(v => v !== null).length} applied
+                  {Object.entries(filters).filter(([key, value]) => 
+                    key !== 'showMonthly' && 
+                    key !== 'showQuarterly' && 
+                    value !== null && 
+                    value !== ''
+                  ).length} applied
                 </p>
               </div>
             )}
@@ -226,33 +235,21 @@ export default function DashboardPage() {
           <UyPerformanceTable
             data={uyPerformance}
             totals={uyPerformanceTotals}
+            showMonthly={filters.showMonthly}
+            showQuarterly={filters.showQuarterly}
+            rawData={filteredData}
           />
         </motion.div>
 
-        {/* Main Charts Section */}
+        {/* Top 10 Lists */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
-          className="space-y-8"
+          className="grid grid-cols-1 lg:grid-cols-2 gap-6"
         >
-          {/* Line Chart: Premium vs Incurred by UY */}
-          <PremiumIncurredLineChart data={filteredData} />
-
-          {/* Bar Chart: Loss Ratio % by UY */}
-          <LossRatioBarChart data={filteredData} />
-
-          {/* Donut Chart: Premium by Ext Type */}
-          <PremiumByExtTypeDonut data={filteredData} />
-
-          {/* Top 10 Lists */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <TopCedantsList data={filteredData} />
-            <TopBrokersList data={filteredData} />
-          </div>
-
-
-
+          <TopCedantsList data={filteredData} />
+          <TopBrokersList data={filteredData} />
         </motion.div>
 
         {/* Loading State */}
@@ -312,7 +309,7 @@ export default function DashboardPage() {
                 No data available. Please check if the CSV file is properly loaded.
               </p>
               <div className="text-sm text-muted-foreground">
-                <p>Expected CSV: Ultimate Gross and Net Data(HO in KWD & FERO in USD).csv</p>
+                <p>Expected CSV: ULTIMATE DATA .csv</p>
                 <p className="mt-2">All KPIs will be calculated automatically from your data.</p>
               </div>
             </div>

@@ -31,9 +31,14 @@ import {
   Users,
   Building
 } from 'lucide-react';
-import { formatKD, formatKDNumeric, formatPct } from '@/lib/format';
+import { formatKD, formatKDNumeric, formatPct, formatNumber } from '@/lib/format';
+import { useFormatCurrency } from '@/lib/format-currency';
+import { CurrencyLabel } from '@/components/currency/CurrencyLabel';
+import { useUserRoles } from '@/hooks/useUserRoles';
 import { ReinsuranceData } from '@/lib/schema';
 import { ChatBot } from '@/components/chat/ChatBot';
+import { UniversalFilterState } from '@/components/filters/UniversalFilterPanel';
+import { TopFilterPanel } from '@/components/filters/TopFilterPanel';
 
 type ClientType = 'broker' | 'cedant';
 
@@ -47,6 +52,9 @@ interface NormalizedRow {
   cedant: string | null;
   insured: string | null;
   year: number | undefined;
+  extType: string | null;
+  className: string | null;
+  subClass: string | null;
   
   // Key fields (lowercased for filtering)
   kCountry: string;
@@ -55,6 +63,9 @@ interface NormalizedRow {
   kBroker: string | null;
   kCedant: string | null;
   kInsured: string | null;
+  kExtType: string | null;
+  kClass: string | null;
+  kSubClass: string | null;
   
   // Numeric fields (guarded)
   grossUWPrem: number;
@@ -71,6 +82,9 @@ interface FilterState {
   broker: string[];
   insured: string[];
   year: number[];
+  extType: string[];
+  class: string[];
+  subClass: string[];
 }
 
 interface ClientData {
@@ -93,15 +107,36 @@ interface FilterIndexes {
   byCedant: Map<string, number[]>;
   byInsured: Map<string, number[]>;
   byYear: Map<number, number[]>;
+  byExtType: Map<string, number[]>;
+  byClass: Map<string, number[]>;
+  bySubClass: Map<string, number[]>;
 }
 
 export default function ClientOverviewPage() {
+  const { formatCurrencyNumeric } = useFormatCurrency();
+  const { isAdmin } = useUserRoles();
   const [rawData, setRawData] = useState<ReinsuranceData[]>([]);
   const [normalizedRows, setNormalizedRows] = useState<NormalizedRow[]>([]);
   const [indexes, setIndexes] = useState<FilterIndexes | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [clientType, setClientType] = useState<ClientType>('broker');
   const [maxClients, setMaxClients] = useState<number>(5);
+  const [universalFilters, setUniversalFilters] = useState<UniversalFilterState>({
+    office: null,
+    extType: null,
+    policyNature: null,
+    class: null,
+    subClass: null,
+    hub: null,
+    region: null,
+    country: null,
+    year: null,
+    month: null,
+    quarter: null,
+    broker: null,
+    cedant: null,
+    policyName: null,
+  });
   const [filters, setFilters] = useState<FilterState>({
     country: [],
     hub: [],
@@ -109,10 +144,12 @@ export default function ClientOverviewPage() {
     cedant: [],
     broker: [],
     insured: [],
-    year: []
+    year: [],
+    extType: [],
+    class: [],
+    subClass: []
   });
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
 
   // Normalization function according to spec
   const normalizeData = (records: ReinsuranceData[]): NormalizedRow[] => {
@@ -123,13 +160,41 @@ export default function ClientOverviewPage() {
       // Key function: key(v) = norm(v).toLowerCase()
       const key = (v: string | undefined | null): string => norm(v).toLowerCase();
       
-      // Year extraction: use inception year or UY
-      const year = record.inceptionYear || (record.uy ? parseInt(record.uy) : undefined);
+      // Year extraction: try UY first, then inceptionYear, with proper parsing
+      let year: number | undefined = undefined;
+      
+      // Try to extract year from UY (Underwriting Year)
+      if (record.uy) {
+        // First try direct parsing if UY is a number string
+        const uyYear = parseInt(record.uy);
+        if (!isNaN(uyYear) && uyYear >= 1900 && uyYear <= 2100) {
+          year = uyYear;
+        } else {
+          // Try to extract year from UY string using regex (e.g., "UY 2020", "2020-2021")
+          const yearMatch = record.uy.match(/\b(19|20)\d{2}\b/);
+          if (yearMatch) {
+            const extractedYear = parseInt(yearMatch[0], 10);
+            if (extractedYear >= 1900 && extractedYear <= 2100) {
+              year = extractedYear;
+            }
+          }
+        }
+      }
+      
+      // Fallback to inceptionYear if UY extraction failed
+      if (!year && record.inceptionYear) {
+        if (record.inceptionYear >= 1900 && record.inceptionYear <= 2100) {
+          year = record.inceptionYear;
+        }
+      }
       
       // Broker/cedant/insured: if empty → null
       const broker = record.broker && record.broker.trim() !== '' ? record.broker : null;
       const cedant = record.cedant && record.cedant.trim() !== '' ? record.cedant : null;
       const insured = record.orgInsuredTrtyName && record.orgInsuredTrtyName.trim() !== '' ? record.orgInsuredTrtyName : null;
+      const extType = record.extType && record.extType.trim() !== '' ? record.extType : null;
+      const className = record.className && record.className.trim() !== '' ? record.className : null;
+      const subClass = record.subClass && record.subClass.trim() !== '' ? record.subClass : null;
       
       // Numeric coercion: non-numeric → 0 (safe math)
       const safeNum = (v: number | undefined | null): number => {
@@ -146,6 +211,9 @@ export default function ClientOverviewPage() {
         cedant,
         insured,
         year,
+        extType,
+        className,
+        subClass,
         
         // Key fields (lowercased for filtering)
         kCountry: key(record.countryName),
@@ -154,12 +222,15 @@ export default function ClientOverviewPage() {
         kBroker: broker ? key(broker) : null,
         kCedant: cedant ? key(cedant) : null,
         kInsured: insured ? key(insured) : null,
+        kExtType: extType ? key(extType) : null,
+        kClass: className ? key(className) : null,
+        kSubClass: subClass ? key(subClass) : null,
         
-        // Numeric fields (guarded)
-        grossUWPrem: safeNum(record.grossUWPrem),
-        grossActualAcq: safeNum(record.grossActualAcq),
-        grossPaidClaims: safeNum(record.grossPaidClaims),
-        grossOsLoss: safeNum(record.grossOsLoss)
+        // Numeric fields (guarded) - use KD fields, fallback to deprecated fields for backward compatibility
+        grossUWPrem: safeNum(record.grsPremKD ?? record.grossUWPrem),
+        grossActualAcq: safeNum(record.acqCostKD ?? record.grossActualAcq),
+        grossPaidClaims: safeNum(record.paidClaimsKD ?? record.grossPaidClaims),
+        grossOsLoss: safeNum(record.osClaimKD ?? record.grossOsLoss)
       };
     });
   };
@@ -173,6 +244,9 @@ export default function ClientOverviewPage() {
     const byCedant = new Map<string, number[]>();
     const byInsured = new Map<string, number[]>();
     const byYear = new Map<number, number[]>();
+    const byExtType = new Map<string, number[]>();
+    const byClass = new Map<string, number[]>();
+    const bySubClass = new Map<string, number[]>();
     
     rows.forEach((row, index) => {
       // Country index
@@ -216,31 +290,40 @@ export default function ClientOverviewPage() {
         if (!byYear.has(row.year)) byYear.set(row.year, []);
         byYear.get(row.year)!.push(index);
       }
+      
+      // ExtType index
+      if (row.kExtType) {
+        if (!byExtType.has(row.kExtType)) byExtType.set(row.kExtType, []);
+        byExtType.get(row.kExtType)!.push(index);
+      }
+      
+      // Class index
+      if (row.kClass) {
+        if (!byClass.has(row.kClass)) byClass.set(row.kClass, []);
+        byClass.get(row.kClass)!.push(index);
+      }
+      
+      // SubClass index
+      if (row.kSubClass) {
+        if (!bySubClass.has(row.kSubClass)) bySubClass.set(row.kSubClass, []);
+        bySubClass.get(row.kSubClass)!.push(index);
+      }
     });
     
-    return { byCountry, byRegion, byHub, byBroker, byCedant, byInsured, byYear };
+    return { byCountry, byRegion, byHub, byBroker, byCedant, byInsured, byYear, byExtType, byClass, bySubClass };
   };
 
   // Load data from API
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      console.log('Client Overview - Loading data...');
-      const response = await fetch('/api/data?limit=5000');
-      console.log('Client Overview - API response status:', response.status);
+      const response = await fetch('/api/data?limit=100000');
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const result = await response.json();
-      console.log('Client Overview - API response:', {
-        hasData: !!result.data,
-        dataLength: result.data?.length || 0,
-        sampleRecord: result.data?.[0],
-        total: result.total,
-        returned: result.returned
-      });
       
       if (result.data && Array.isArray(result.data) && result.data.length > 0) {
         setRawData(result.data);
@@ -254,13 +337,7 @@ export default function ClientOverviewPage() {
         setIndexes(newIndexes);
         
         setLastUpdated(new Date());
-        console.log('Client Overview - Data processed successfully:', {
-          rawRecords: result.data.length,
-          normalizedRecords: normalized.length,
-          indexesBuilt: true
-        });
       } else {
-        console.log('Client Overview - No data in response or invalid format');
         setRawData([]);
         setNormalizedRows([]);
         setIndexes(null);
@@ -282,7 +359,6 @@ export default function ClientOverviewPage() {
   // Filtering algorithm according to spec: union-within, intersection-across
   const filteredData = useMemo(() => {
     if (!indexes || normalizedRows.length === 0) {
-      console.log('Client Overview - No data or indexes available for filtering');
       return [];
     }
 
@@ -296,30 +372,42 @@ export default function ClientOverviewPage() {
       const facetIndices = new Set<number>();
       
       // UNION within facet (all selections for this facet)
-      selections.forEach((selection: string) => {
+      selections.forEach((selection: string | number) => {
         let indices: number[] = [];
         
         switch (facet) {
           case 'country':
-            indices = indexes.byCountry.get(selection.toLowerCase()) || [];
+            indices = indexes.byCountry.get(String(selection).toLowerCase()) || [];
             break;
           case 'region':
-            indices = indexes.byRegion.get(selection.toLowerCase()) || [];
+            indices = indexes.byRegion.get(String(selection).toLowerCase()) || [];
             break;
           case 'hub':
-            indices = indexes.byHub.get(selection.toLowerCase()) || [];
+            indices = indexes.byHub.get(String(selection).toLowerCase()) || [];
             break;
           case 'broker':
-            indices = indexes.byBroker.get(selection.toLowerCase()) || [];
+            indices = indexes.byBroker.get(String(selection).toLowerCase()) || [];
             break;
           case 'cedant':
-            indices = indexes.byCedant.get(selection.toLowerCase()) || [];
+            indices = indexes.byCedant.get(String(selection).toLowerCase()) || [];
             break;
           case 'insured':
-            indices = indexes.byInsured.get(selection.toLowerCase()) || [];
+            indices = indexes.byInsured.get(String(selection).toLowerCase()) || [];
             break;
           case 'year':
-            indices = indexes.byYear.get(Number(selection)) || [];
+            const yearNum = typeof selection === 'number' ? selection : Number(selection);
+            if (!isNaN(yearNum)) {
+              indices = indexes.byYear.get(yearNum) || [];
+            }
+            break;
+          case 'extType':
+            indices = indexes.byExtType.get(String(selection).toLowerCase()) || [];
+            break;
+          case 'class':
+            indices = indexes.byClass.get(String(selection).toLowerCase()) || [];
+            break;
+          case 'subClass':
+            indices = indexes.bySubClass.get(String(selection).toLowerCase()) || [];
             break;
         }
         
@@ -332,24 +420,12 @@ export default function ClientOverviewPage() {
     
     const filteredRows = Array.from(pool).map(index => normalizedRows[index]);
     
-    console.log('Client Overview - Filtering results:', {
-      totalRows: normalizedRows.length,
-      filteredRows: filteredRows.length,
-      activeFilters: Object.entries(filters).filter(([, values]) => values.length > 0)
-    });
-    
     return filteredRows;
   }, [normalizedRows, indexes, filters]);
 
-  // Dependent filter options (computed from CURRENT filtered rows according to spec)
+  // Dependent filter options (computed from all normalized rows for initial load, then from filtered data)
   const filterOptions = useMemo(() => {
-    console.log('Client Overview - Building filter options from filtered data:', {
-      totalRecords: normalizedRows.length,
-      filteredRecords: filteredData.length,
-      sampleRecord: filteredData[0]
-    });
-
-    if (filteredData.length === 0) {
+    if (normalizedRows.length === 0) {
       return {
         country: [],
         hub: [],
@@ -357,56 +433,57 @@ export default function ClientOverviewPage() {
         cedant: [],
         broker: [],
         insured: [],
-        year: []
+        year: [],
+        extType: [],
+        class: [],
+        subClass: []
       };
     }
 
-    // Extract unique values from CURRENT filtered rows
-    const countries = [...new Set(filteredData.map(d => d.countryName).filter(name => name && name.trim() !== ''))].sort();
-    const hubs = [...new Set(filteredData.map(d => d.hub).filter(hub => hub && hub.trim() !== ''))].sort();
-    const regions = [...new Set(filteredData.map(d => d.region).filter(region => region && region.trim() !== ''))].sort();
-    const cedants = [...new Set(filteredData.map(d => d.cedant).filter(cedant => cedant && cedant.trim() !== ''))].sort();
-    const brokers = [...new Set(filteredData.map(d => d.broker).filter(broker => broker && broker.trim() !== ''))].sort();
-    const insured = [...new Set(filteredData.map(d => d.insured).filter(insured => insured && insured.trim() !== ''))].sort();
-    const years = [...new Set(filteredData.map(d => d.year).filter(year => year !== null))].sort((a, b) => a! - b!);
+    // Use filtered data to show only relevant options (cascading filters)
+    const sourceData = filteredData.length > 0 ? filteredData : normalizedRows;
 
-    console.log('Client Overview - Filter options:', {
-      countries: countries.length,
-      hubs: hubs.length,
-      regions: regions.length,
-      cedants: cedants.length,
-      brokers: brokers.length,
-      insured: insured.length,
-      years: years.length,
-      sampleCountries: countries.slice(0, 5),
-      sampleBrokers: brokers.slice(0, 5),
-      sampleCedants: cedants.slice(0, 5)
-    });
+    // Extract unique values from source data
+    const countries = [...new Set(sourceData.map(d => d.countryName).filter(name => name && name.trim() !== ''))].sort();
+    const hubs = [...new Set(sourceData.map(d => d.hub).filter(hub => hub && hub.trim() !== ''))].sort();
+    const regions = [...new Set(sourceData.map(d => d.region).filter(region => region && region.trim() !== ''))].sort();
+    const cedants = [...new Set(sourceData.map(d => d.cedant).filter(cedant => cedant && cedant !== null))].sort();
+    const brokers = [...new Set(sourceData.map(d => d.broker).filter(broker => broker && broker !== null))].sort();
+    const insured = [...new Set(sourceData.map(d => d.insured).filter(insured => insured && insured !== null))].sort();
+    const years = [...new Set(sourceData.map(d => d.year).filter(year => year !== undefined && year !== null))].sort((a, b) => (a ?? 0) - (b ?? 0));
+    const extTypes = [...new Set(sourceData.map(d => d.extType).filter(extType => extType && extType !== null))].sort();
+    
+    // For class and subclass, use filtered data to show cascading options
+    const classes = [...new Set(sourceData.map(d => d.className).filter(className => className && className !== null))].sort();
+    
+    // Subclass options should only show subclasses for selected classes (or all if no class selected)
+    const selectedClasses = filters.class.length > 0 ? filters.class : classes;
+    const subClasses = [...new Set(
+      sourceData
+        .filter(d => selectedClasses.length === 0 || (d.className && selectedClasses.includes(d.className.toLowerCase())))
+        .map(d => d.subClass)
+        .filter(subClass => subClass && subClass !== null)
+    )].sort();
 
     return {
       country: countries,
       hub: hubs,
       region: regions,
-      cedant: cedants.filter(c => c !== null),
-      broker: brokers.filter(b => b !== null),
-      insured: insured.filter(i => i !== null),
-      year: years.map(y => y!.toString())
+      cedant: cedants.filter((c): c is string => c !== null),
+      broker: brokers.filter((b): b is string => b !== null),
+      insured: insured.filter((i): i is string => i !== null),
+      year: years.map(y => y!.toString()),
+      extType: extTypes.filter((e): e is string => e !== null),
+      class: classes.filter((c): c is string => c !== null),
+      subClass: subClasses.filter((s): s is string => s !== null)
     };
-  }, [filteredData, normalizedRows]);
+  }, [normalizedRows, filteredData, filters.class]);
 
   // Calculate client overview data according to spec
   const clientData = useMemo(() => {
     if (filteredData.length === 0) {
-      console.log('Client Overview - No filtered data available');
       return { clients: [], totals: null, grandTotal: null };
     }
-
-    console.log('Client Overview - Processing filtered data:', {
-      totalRecords: filteredData.length,
-      sampleRecord: filteredData[0],
-      activeFilters: Object.entries(filters).filter(([, values]) => values.length > 0),
-      clientType: clientType
-    });
 
     // Group data by client (broker or cedant) according to spec
     const clientGroups: Record<string, NormalizedRow[]> = {};
@@ -419,11 +496,6 @@ export default function ClientOverviewPage() {
         }
         clientGroups[clientName].push(record);
       }
-    });
-
-    console.log('Client Overview - Client groups:', {
-      totalGroups: Object.keys(clientGroups).length,
-      groupNames: Object.keys(clientGroups).slice(0, 5)
     });
 
     // Calculate metrics for each client according to spec
@@ -458,10 +530,6 @@ export default function ClientOverviewPage() {
     const topClients = clientMetrics
       .sort((a, b) => b.premium - a.premium)
       .slice(0, maxClients);
-
-    console.log('Client Overview - Top clients:', {
-      topClients: topClients.map(c => ({ name: c.name, premium: c.premium }))
-    });
 
     // Calculate grand total (all clients)
     const grandTotal = clientMetrics.reduce((sum, client) => sum + client.premium, 0);
@@ -505,12 +573,6 @@ export default function ClientOverviewPage() {
       percentageOfTotal: 100
     };
 
-    console.log('Client Overview - Final results:', {
-      clientsCount: clientsWithPercentages.length,
-      totalsPremium: totalsRow.premium,
-      grandTotalPremium: grandTotalRow.premium
-    });
-
     return {
       clients: clientsWithPercentages,
       totals: totalsRow,
@@ -518,24 +580,39 @@ export default function ClientOverviewPage() {
     };
   }, [filteredData, clientType, maxClients, filters]);
 
-  // Handle filter changes
-  const handleFilterChange = (filterType: keyof FilterState, values: string[]) => {
-    setFilters(prev => ({
-      ...prev,
-      [filterType]: filterType === 'year' ? values.map(v => Number(v)) : values
-    }));
-  };
-
-  // Reset all filters
-  const resetFilters = () => {
+  // Sync universal filters to internal filter state
+  useEffect(() => {
     setFilters({
-      country: [],
-      hub: [],
-      region: [],
-      cedant: [],
-      broker: [],
-      insured: [],
-      year: []
+      country: universalFilters.country ? [universalFilters.country] : [],
+      hub: universalFilters.hub ? [universalFilters.hub] : [],
+      region: universalFilters.region ? [universalFilters.region] : [],
+      cedant: universalFilters.cedant ? [universalFilters.cedant] : [],
+      broker: universalFilters.broker ? [universalFilters.broker] : [],
+      insured: universalFilters.policyName ? [universalFilters.policyName] : [],
+      year: universalFilters.year ? [parseInt(universalFilters.year)] : [],
+      extType: universalFilters.extType ? [universalFilters.extType] : [],
+      class: universalFilters.class ? [universalFilters.class] : [],
+      subClass: universalFilters.subClass ? [universalFilters.subClass] : []
+    });
+  }, [universalFilters]);
+
+  // Clear all filters
+  const clearFilters = () => {
+    setUniversalFilters({
+      office: null,
+      extType: null,
+      policyNature: null,
+      class: null,
+      subClass: null,
+      hub: null,
+      region: null,
+      country: null,
+      year: null,
+      month: null,
+      quarter: null,
+      broker: null,
+      cedant: null,
+      policyName: null,
     });
   };
 
@@ -549,8 +626,16 @@ export default function ClientOverviewPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Top Filter Panel */}
+      <TopFilterPanel
+        data={rawData}
+        filters={universalFilters}
+        onFiltersChange={setUniversalFilters}
+        onClearFilters={clearFilters}
+      />
+
       {/* Fixed Header */}
-      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
+      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             {/* Left side - Title */}
@@ -591,334 +676,6 @@ export default function ClientOverviewPage() {
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <div className="border-b bg-muted/30">
-        <div className="container mx-auto px-4 py-3">
-          {/* Desktop Filters */}
-          <div className="hidden md:flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <Filter className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Filters:</span>
-            </div>
-            
-            {/* Country Filter */}
-            <div className="min-w-[120px]">
-              <Select
-                value={filters.country.length > 0 ? filters.country[0] : 'all'}
-                onValueChange={(value) => 
-                  handleFilterChange('country', value === 'all' ? [] : [value])
-                }
-              >
-                <SelectTrigger className="h-8">
-                  <SelectValue placeholder="Country" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Countries</SelectItem>
-                  {filterOptions.country.map(country => (
-                    <SelectItem key={country} value={country}>
-                      {country}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Hub Filter */}
-            <div className="min-w-[100px]">
-              <Select
-                value={filters.hub.length > 0 ? filters.hub[0] : 'all'}
-                onValueChange={(value) => 
-                  handleFilterChange('hub', value === 'all' ? [] : [value])
-                }
-              >
-                <SelectTrigger className="h-8">
-                  <SelectValue placeholder="Hub" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Hubs</SelectItem>
-                  {filterOptions.hub.map(hub => (
-                    <SelectItem key={hub} value={hub}>
-                      {hub}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Region Filter */}
-            <div className="min-w-[100px]">
-              <Select
-                value={filters.region.length > 0 ? filters.region[0] : 'all'}
-                onValueChange={(value) => 
-                  handleFilterChange('region', value === 'all' ? [] : [value])
-                }
-              >
-                <SelectTrigger className="h-8">
-                  <SelectValue placeholder="Region" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Regions</SelectItem>
-                  {filterOptions.region.map(region => (
-                    <SelectItem key={region} value={region}>
-                      {region}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Cedant Filter */}
-            <div className="min-w-[120px]">
-              <Select
-                value={filters.cedant.length > 0 ? filters.cedant[0] : 'all'}
-                onValueChange={(value) => 
-                  handleFilterChange('cedant', value === 'all' ? [] : [value])
-                }
-              >
-                <SelectTrigger className="h-8">
-                  <SelectValue placeholder="Cedant" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Cedants</SelectItem>
-                  {filterOptions.cedant.map(cedant => (
-                    <SelectItem key={cedant} value={cedant}>
-                      {cedant}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Insured Filter */}
-            <div className="min-w-[120px]">
-              <Select
-                value={filters.insured.length > 0 ? filters.insured[0] : 'all'}
-                onValueChange={(value) => 
-                  handleFilterChange('insured', value === 'all' ? [] : [value])
-                }
-              >
-                <SelectTrigger className="h-8">
-                  <SelectValue placeholder="Insured" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Insured</SelectItem>
-                  {filterOptions.insured.map(insured => (
-                    <SelectItem key={insured} value={insured}>
-                      {insured}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Year Filter */}
-            <div className="min-w-[100px]">
-              <Select
-                value={filters.year.length > 0 ? filters.year[0].toString() : 'all'}
-                onValueChange={(value) => 
-                  handleFilterChange('year', value === 'all' ? [] : [value])
-                }
-              >
-                <SelectTrigger className="h-8">
-                  <SelectValue placeholder="Year" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Years</SelectItem>
-                  {filterOptions.year.map(year => (
-                    <SelectItem key={year} value={year}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Reset Filters Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={resetFilters}
-              className="flex items-center space-x-1"
-            >
-              <RefreshCw className="w-4 h-4" />
-              <span>Reset</span>
-            </Button>
-          </div>
-
-          {/* Mobile Filter Toggle */}
-          <div className="md:hidden flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Filter className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Filters</span>
-              {Object.values(filters).some(arr => arr.length > 0) && (
-                <Badge variant="secondary" className="text-xs">
-                  {Object.values(filters).reduce((acc, arr) => acc + arr.length, 0)} active
-                </Badge>
-              )}
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsFilterDrawerOpen(!isFilterDrawerOpen)}
-            >
-              <ChevronDown className={`w-4 h-4 transition-transform ${isFilterDrawerOpen ? 'rotate-180' : ''}`} />
-            </Button>
-          </div>
-        </div>
-
-        {/* Filter Drawer */}
-        {isFilterDrawerOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="border-t bg-muted/50 p-4 space-y-4"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Country Filter */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Country</Label>
-                <Select
-                  value={filters.country.length > 0 ? filters.country[0] : ""}
-                  onValueChange={(value) => handleFilterChange('country', value ? [value] : [])}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select country" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">All Countries</SelectItem>
-                    {filterOptions.country.map(country => (
-                      <SelectItem key={country} value={country}>
-                        {country}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Hub Filter */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Hub</Label>
-                <Select
-                  value={filters.hub.length > 0 ? filters.hub[0] : ""}
-                  onValueChange={(value) => handleFilterChange('hub', value ? [value] : [])}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select hub" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">All Hubs</SelectItem>
-                    {filterOptions.hub.map(hub => (
-                      <SelectItem key={hub} value={hub}>
-                        {hub}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Region Filter */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Region</Label>
-                <Select
-                  value={filters.region.length > 0 ? filters.region[0] : ""}
-                  onValueChange={(value) => handleFilterChange('region', value ? [value] : [])}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select region" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">All Regions</SelectItem>
-                    {filterOptions.region.map(region => (
-                      <SelectItem key={region} value={region}>
-                        {region}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Broker Filter */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Broker</Label>
-                <Select
-                  value={filters.broker.length > 0 ? filters.broker[0] : ""}
-                  onValueChange={(value) => handleFilterChange('broker', value ? [value] : [])}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select broker" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">All Brokers</SelectItem>
-                    {filterOptions.broker.slice(0, 50).map(broker => (
-                      <SelectItem key={broker} value={broker}>
-                        {broker}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Cedant Filter */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Cedant</Label>
-                <Select
-                  value={filters.cedant.length > 0 ? filters.cedant[0] : ""}
-                  onValueChange={(value) => handleFilterChange('cedant', value ? [value] : [])}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select cedant" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">All Cedants</SelectItem>
-                    {filterOptions.cedant.slice(0, 50).map(cedant => (
-                      <SelectItem key={cedant} value={cedant}>
-                        {cedant}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Year Filter */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Year</Label>
-                <Select
-                  value={filters.year.length > 0 ? filters.year[0].toString() : ""}
-                  onValueChange={(value) => handleFilterChange('year', value ? [value] : [])}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">All Years</SelectItem>
-                    {filterOptions.year.map(year => (
-                      <SelectItem key={year} value={year}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Filter Actions */}
-            <div className="flex items-center justify-between pt-4 border-t">
-              <div className="text-sm text-muted-foreground">
-                {Object.values(filters).flat().length} active filters • {filteredData.length.toLocaleString()} records
-              </div>
-              <div className="flex space-x-2">
-                <Button variant="outline" size="sm" onClick={resetFilters}>
-                  Clear All
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setIsFilterDrawerOpen(false)}>
-                  Apply Filters
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </div>
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-6">
@@ -949,14 +706,16 @@ export default function ClientOverviewPage() {
                 <Badge variant="outline">
                   {clientData.clients?.length || 0} of {maxClients} clients
                 </Badge>
-                <Button variant="outline" size="sm">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export
-                </Button>
+                {isAdmin && (
+                  <Button variant="outline" size="sm">
+                    <Download className="w-4 h-4 mr-2" />
+                    Export
+                  </Button>
+                )}
               </div>
             </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground/80">
-              All monetary values shown in KWD.
+            <CardDescription>
+              <CurrencyLabel />
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -998,9 +757,9 @@ export default function ClientOverviewPage() {
                       <TableHeader className="bg-muted/50">
                         <TableRow>
                           <TableHead className="w-[250px] font-semibold">Broker List</TableHead>
-                          <TableHead className="text-right w-[140px] font-semibold">Premium</TableHead>
+                          <TableHead className="text-right w-[120px] font-semibold">Number of Accounts</TableHead>
+                          <TableHead className="text-right w-[140px] font-semibold">Grand Total Premium</TableHead>
                           <TableHead className="text-right w-[120px] font-semibold">Loss Ratio %</TableHead>
-                          <TableHead className="text-right w-[140px] font-semibold">% of Grand Total</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1015,15 +774,15 @@ export default function ClientOverviewPage() {
                               </div>
                             </TableCell>
                             <TableCell className="text-right font-mono text-sm py-3">
-                              {formatKDNumeric(client.premium)}
+                              {formatNumber(client.policyCount || 0)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-sm py-3">
+                              {formatCurrencyNumeric(client.premium)}
                             </TableCell>
                             <TableCell className="text-right py-3">
                               <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRatioColor(client.lossRatio)}`}>
                                 {formatPct(client.lossRatio)}
                               </span>
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-sm py-3">
-                              {formatPct(client.percentageOfTotal || 0)}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -1033,32 +792,32 @@ export default function ClientOverviewPage() {
                               <TableCell className="font-medium text-primary">
                                 TOTAL
                               </TableCell>
-                              <TableCell className="text-right">
-                                {formatKDNumeric(clientData.totals.premium)}
+                              <TableCell className="text-right font-mono">
+                                {formatNumber(clientData.totals.policyCount || 0)}
+                              </TableCell>
+                              <TableCell className="text-right font-mono">
+                                {formatCurrencyNumeric(clientData.totals.premium)}
                               </TableCell>
                               <TableCell className="text-right">
-                                <span className={getRatioColor(clientData.grandTotal.lossRatio)}>
-                                  {formatPct(clientData.grandTotal.lossRatio)}
+                                <span className={getRatioColor(clientData.totals.lossRatio)}>
+                                  {formatPct(clientData.totals.lossRatio)}
                                 </span>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {formatPct(clientData.grandTotal.premium > 0 ? (clientData.totals.premium / clientData.grandTotal.premium) * 100 : 0)}
                               </TableCell>
                             </TableRow>
                             <TableRow className="bg-muted/30 font-bold">
                               <TableCell className="font-medium text-primary">
                                 Grand Total
                               </TableCell>
-                              <TableCell className="text-right">
-                                {formatKDNumeric(clientData.grandTotal.premium)}
+                              <TableCell className="text-right font-mono">
+                                {formatNumber(clientData.grandTotal.policyCount || 0)}
+                              </TableCell>
+                              <TableCell className="text-right font-mono">
+                                {formatCurrencyNumeric(clientData.grandTotal.premium)}
                               </TableCell>
                               <TableCell className="text-right">
                                 <span className={getRatioColor(clientData.grandTotal.lossRatio)}>
                                   {formatPct(clientData.grandTotal.lossRatio)}
                                 </span>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {formatPct(clientData.grandTotal.premium > 0 ? (clientData.totals.premium / clientData.grandTotal.premium) * 100 : 0)}
                               </TableCell>
                             </TableRow>
                           </>
@@ -1095,9 +854,9 @@ export default function ClientOverviewPage() {
                       <TableHeader className="bg-muted/50">
                         <TableRow>
                           <TableHead className="w-[250px] font-semibold">Cedant List</TableHead>
-                          <TableHead className="text-right w-[140px] font-semibold">Premium</TableHead>
+                          <TableHead className="text-right w-[120px] font-semibold">Number of Accounts</TableHead>
+                          <TableHead className="text-right w-[140px] font-semibold">Grand Total Premium</TableHead>
                           <TableHead className="text-right w-[120px] font-semibold">Loss Ratio %</TableHead>
-                          <TableHead className="text-right w-[140px] font-semibold">% of Grand Total</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1112,15 +871,15 @@ export default function ClientOverviewPage() {
                               </div>
                             </TableCell>
                             <TableCell className="text-right font-mono text-sm py-3">
-                              {formatKDNumeric(client.premium)}
+                              {formatNumber(client.policyCount || 0)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-sm py-3">
+                              {formatCurrencyNumeric(client.premium)}
                             </TableCell>
                             <TableCell className="text-right py-3">
                               <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRatioColor(client.lossRatio)}`}>
                                 {formatPct(client.lossRatio)}
                               </span>
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-sm py-3">
-                              {formatPct(client.percentageOfTotal || 0)}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -1130,32 +889,32 @@ export default function ClientOverviewPage() {
                               <TableCell className="font-medium text-primary">
                                 TOTAL
                               </TableCell>
-                              <TableCell className="text-right">
-                                {formatKDNumeric(clientData.totals.premium)}
+                              <TableCell className="text-right font-mono">
+                                {formatNumber(clientData.totals.policyCount || 0)}
+                              </TableCell>
+                              <TableCell className="text-right font-mono">
+                                {formatCurrencyNumeric(clientData.totals.premium)}
                               </TableCell>
                               <TableCell className="text-right">
-                                <span className={getRatioColor(clientData.grandTotal.lossRatio)}>
-                                  {formatPct(clientData.grandTotal.lossRatio)}
+                                <span className={getRatioColor(clientData.totals.lossRatio)}>
+                                  {formatPct(clientData.totals.lossRatio)}
                                 </span>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {formatPct(clientData.grandTotal.premium > 0 ? (clientData.totals.premium / clientData.grandTotal.premium) * 100 : 0)}
                               </TableCell>
                             </TableRow>
                             <TableRow className="bg-muted/30 font-bold">
                               <TableCell className="font-medium text-primary">
                                 Grand Total
                               </TableCell>
-                              <TableCell className="text-right">
-                                {formatKDNumeric(clientData.grandTotal.premium)}
+                              <TableCell className="text-right font-mono">
+                                {formatNumber(clientData.grandTotal.policyCount || 0)}
+                              </TableCell>
+                              <TableCell className="text-right font-mono">
+                                {formatCurrencyNumeric(clientData.grandTotal.premium)}
                               </TableCell>
                               <TableCell className="text-right">
                                 <span className={getRatioColor(clientData.grandTotal.lossRatio)}>
                                   {formatPct(clientData.grandTotal.lossRatio)}
                                 </span>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {formatPct(clientData.grandTotal.premium > 0 ? (clientData.totals.premium / clientData.grandTotal.premium) * 100 : 0)}
                               </TableCell>
                             </TableRow>
                           </>

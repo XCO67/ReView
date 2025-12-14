@@ -1,9 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -24,7 +31,11 @@ import {
   Users
 } from 'lucide-react';
 import { formatKD, formatKDNumeric, formatPct, formatNumber } from '@/lib/format';
+import { useFormatCurrency } from '@/lib/format-currency';
+import { CurrencyLabel } from '@/components/currency/CurrencyLabel';
+import { useUserRoles } from '@/hooks/useUserRoles';
 import { ChatBot } from '@/components/chat/ChatBot';
+import { ReinsuranceData } from '@/lib/schema';
 
 interface YearlyData {
   year: number;
@@ -57,31 +68,121 @@ interface YearlyResponse {
   };
 }
 
-export default function YearlyOverviewPage() {
+export function YearlyOverviewContent({ hideChatBot = false }: { hideChatBot?: boolean } = {}) {
+  const { isAdmin } = useUserRoles();
+  const { formatCurrency, formatCurrencyNumeric } = useFormatCurrency();
   const [yearlyData, setYearlyData] = useState<YearlyResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [data, setData] = useState<ReinsuranceData[]>([]);
+  const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [selectedLoc, setSelectedLoc] = useState<string>('all');
+  const [selectedExtType, setSelectedExtType] = useState<string>('all');
+  const [selectedClass, setSelectedClass] = useState<string>('all');
+  const [selectedSubClass, setSelectedSubClass] = useState<string>('all');
 
-  // Load yearly data
+  // Get available years from data
+  const availableYears = useMemo(() => {
+    const years = [...new Set(data.map(d => {
+      // Use inceptionYear if available, otherwise UY
+      return d.inceptionYear || d.uy;
+    }).filter(Boolean))].sort((a, b) => {
+      const aNum = typeof a === 'number' ? a : parseInt(String(a), 10);
+      const bNum = typeof b === 'number' ? b : parseInt(String(b), 10);
+      return aNum - bNum;
+    });
+    return ['all', ...years.map(String)];
+  }, [data]);
+
+  // Get available filter options from data
+  const availableLocs = useMemo(() => {
+    const locs = new Set<string>();
+    data.forEach((record) => {
+      if (record.loc) locs.add(record.loc);
+    });
+    return Array.from(locs).sort();
+  }, [data]);
+
+  const availableExtTypes = useMemo(() => {
+    const extTypes = new Set<string>();
+    data.forEach((record) => {
+      if (record.extType) extTypes.add(record.extType);
+    });
+    return Array.from(extTypes).sort();
+  }, [data]);
+
+  const availableClasses = useMemo(() => {
+    const classes = new Set<string>();
+    data.forEach((record) => {
+      if (record.className) classes.add(record.className);
+    });
+    return Array.from(classes).sort();
+  }, [data]);
+
+  // Available subclasses filtered by selected class
+  const availableSubClasses = useMemo(() => {
+    const subClasses = new Set<string>();
+    data.forEach((record) => {
+      if (record.subClass && (selectedClass === 'all' || record.className === selectedClass)) {
+        subClasses.add(record.subClass);
+      }
+    });
+    return Array.from(subClasses).sort();
+  }, [data, selectedClass]);
+
+  // Load data to get available filter options
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const dataResponse = await fetch('/api/data?limit=100000');
+        const dataResult = await dataResponse.json();
+        setData(dataResult.data);
+      } catch (error) {
+        console.error('Yearly Overview - Failed to load data:', error);
+      }
+    };
+    loadData();
+  }, []);
+
+  // Load yearly data when filters change
   useEffect(() => {
     const loadYearlyData = async () => {
       setIsLoading(true);
       try {
-        console.log('Yearly Overview - Loading yearly data...');
-        const response = await fetch('/api/yearly');
-        console.log('Yearly Overview - API response status:', response.status);
+        const params = new URLSearchParams();
+        
+        if (selectedYear !== 'all') {
+          params.append('year', selectedYear);
+        }
+        if (selectedLoc !== 'all') {
+          params.append('loc', selectedLoc);
+        }
+        if (selectedExtType !== 'all') {
+          params.append('extType', selectedExtType);
+        }
+        if (selectedClass !== 'all') {
+          params.append('class', selectedClass);
+        }
+        if (selectedSubClass !== 'all') {
+          params.append('subClass', selectedSubClass);
+        }
+
+        const response = await fetch(`/api/yearly?${params.toString()}`);
         
         if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Yearly Overview - API error response:', errorText);
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await response.text();
+          console.error('Yearly Overview - Non-JSON response:', text.substring(0, 200));
+          throw new Error('Invalid response format: expected JSON');
+        }
+
         const data = await response.json();
-        console.log('Yearly Overview - Data loaded:', {
-          totalYears: Object.keys(data.years || {}).length,
-          totalPolicies: data.total?.policyCount || 0,
-          totalPremium: data.total?.premium || 0
-        });
-        
         setYearlyData(data);
         setLastUpdated(new Date());
       } catch (error) {
@@ -93,14 +194,45 @@ export default function YearlyOverviewPage() {
     };
 
     loadYearlyData();
-  }, []);
+  }, [selectedYear, selectedLoc, selectedExtType, selectedClass, selectedSubClass]);
 
   const handleRefresh = () => {
     const loadYearlyData = async () => {
       setIsLoading(true);
       try {
-        console.log('Yearly Overview - Refreshing data...');
-        const response = await fetch('/api/yearly');
+        const params = new URLSearchParams();
+        
+        if (selectedYear !== 'all') {
+          params.append('year', selectedYear);
+        }
+        if (selectedLoc !== 'all') {
+          params.append('loc', selectedLoc);
+        }
+        if (selectedExtType !== 'all') {
+          params.append('extType', selectedExtType);
+        }
+        if (selectedClass !== 'all') {
+          params.append('class', selectedClass);
+        }
+        if (selectedSubClass !== 'all') {
+          params.append('subClass', selectedSubClass);
+        }
+
+        const response = await fetch(`/api/yearly?${params.toString()}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Yearly Overview - API error response:', errorText);
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await response.text();
+          console.error('Yearly Overview - Non-JSON response:', text.substring(0, 200));
+          throw new Error('Invalid response format: expected JSON');
+        }
+
         const data = await response.json();
         setYearlyData(data);
         setLastUpdated(new Date());
@@ -137,11 +269,9 @@ export default function YearlyOverviewPage() {
             {/* Left side - Title */}
             <div className="flex items-center space-x-3">
               <h1 className="text-2xl font-bold text-foreground">Yearly Overview</h1>
-              {yearlyData && yearlyData.yearOrder && yearlyData.yearOrder.length > 0 && (
-                <Badge variant="outline" className="text-xs">
-                  {yearlyData.yearOrder[0]}-{yearlyData.yearOrder[yearlyData.yearOrder.length - 1]}
-                </Badge>
-              )}
+              <Badge variant="outline" className="text-xs">
+                {selectedYear === 'all' ? 'All Years' : selectedYear}
+              </Badge>
               {yearlyData && (
                 <Badge variant="secondary" className="text-xs">
                   {yearlyData.total?.policyCount || 0} policies
@@ -168,6 +298,101 @@ export default function YearlyOverviewPage() {
                 <Clock className="w-4 h-4" />
                 <span>Last updated: {lastUpdated ? lastUpdated.toLocaleTimeString() : 'Loading...'}</span>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Bar */}
+      <div className="border-b bg-muted/30">
+        <div className="container mx-auto px-4 py-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Year</label>
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="All Years" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Years</SelectItem>
+                  {availableYears.filter(y => y !== 'all').map((year) => (
+                    <SelectItem key={year} value={year}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Loc</label>
+              <Select value={selectedLoc} onValueChange={setSelectedLoc}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="All Loc" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Loc</SelectItem>
+                  {availableLocs.map((loc) => (
+                    <SelectItem key={loc} value={loc}>
+                      {loc}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Ext Type</label>
+              <Select value={selectedExtType} onValueChange={setSelectedExtType}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="All Ext Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Ext Types</SelectItem>
+                  {availableExtTypes.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Class</label>
+              <Select value={selectedClass} onValueChange={(value) => {
+                setSelectedClass(value);
+                setSelectedSubClass('all'); // Clear subclass when class changes
+              }}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="All Classes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Classes</SelectItem>
+                  {availableClasses.map((cls) => (
+                    <SelectItem key={cls} value={cls}>
+                      {cls}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Subclass</label>
+              <Select value={selectedSubClass} onValueChange={setSelectedSubClass} disabled={selectedClass === 'all'}>
+                <SelectTrigger className="h-9 disabled:opacity-50">
+                  <SelectValue placeholder={selectedClass === 'all' ? "Select class first" : "All Subclasses"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Subclasses</SelectItem>
+                  {availableSubClasses.map((subCls) => (
+                    <SelectItem key={subCls} value={subCls}>
+                      {subCls}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
@@ -212,7 +437,7 @@ export default function YearlyOverviewPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {formatKD(yearlyData.total?.premium || 0)}
+                    {formatCurrency(yearlyData.total?.premium || 0)}
                   </div>
                 </CardContent>
               </Card>
@@ -256,13 +481,15 @@ export default function YearlyOverviewPage() {
                     <BarChart3 className="h-5 w-5" />
                     <span>Yearly Performance Breakdown</span>
                   </div>
-                  <Button variant="outline" size="sm">
-                    <Download className="w-4 h-4 mr-2" />
-                    Export
-                  </Button>
+                  {isAdmin && (
+                    <Button variant="outline" size="sm">
+                      <Download className="w-4 h-4 mr-2" />
+                      Export
+                    </Button>
+                  )}
                 </CardTitle>
-                <CardDescription className="text-xs text-muted-foreground/80">
-                  All monetary values shown in KWD.
+                <CardDescription>
+                  <CurrencyLabel />
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -300,11 +527,11 @@ export default function YearlyOverviewPage() {
                             </TableCell>
                             <TableCell className="text-right">
                               <span className="font-mono text-sm">
-                                {formatKDNumeric(data.premium)}
+                                {formatCurrencyNumeric(data.premium)}
                               </span>
                             </TableCell>
                             <TableCell className="text-right font-mono text-sm">
-                              {formatKDNumeric(data.acquisition)}
+                              {formatCurrencyNumeric(data.acquisition)}
                             </TableCell>
                             <TableCell className="text-right">
                               <span className={getRatioColor(data.acquisitionPct)}>
@@ -312,7 +539,7 @@ export default function YearlyOverviewPage() {
                               </span>
                             </TableCell>
                             <TableCell className="text-right font-mono text-sm">
-                              {formatKDNumeric(data.incurredClaims)}
+                              {formatCurrencyNumeric(data.incurredClaims)}
                             </TableCell>
                             <TableCell className="text-right">
                               <Badge variant={getRatioBadgeVariant(data.lossRatioPct)}>
@@ -321,7 +548,7 @@ export default function YearlyOverviewPage() {
                             </TableCell>
                             <TableCell className="text-right">
                               <span className={`font-mono text-sm ${data.technicalResult >= 0 ? "text-green-600" : "text-red-600"}`}>
-                                {formatKDNumeric(data.technicalResult)}
+                                {formatCurrencyNumeric(data.technicalResult)}
                               </span>
                             </TableCell>
                             <TableCell className="text-right">
@@ -346,10 +573,10 @@ export default function YearlyOverviewPage() {
                             {formatNumber(yearlyData.total.policyCount)}
                           </TableCell>
                           <TableCell className="text-right">
-                            {formatKDNumeric(yearlyData.total.premium)}
+                            {formatCurrencyNumeric(yearlyData.total.premium)}
                           </TableCell>
                           <TableCell className="text-right">
-                            {formatKDNumeric(yearlyData.total.acquisition)}
+                            {formatCurrencyNumeric(yearlyData.total.acquisition)}
                           </TableCell>
                           <TableCell className="text-right">
                             <span className={getRatioColor(yearlyData.total.acquisitionPct)}>
@@ -357,7 +584,7 @@ export default function YearlyOverviewPage() {
                             </span>
                           </TableCell>
                           <TableCell className="text-right">
-                            {formatKDNumeric(yearlyData.total.incurredClaims)}
+                            {formatCurrencyNumeric(yearlyData.total.incurredClaims)}
                           </TableCell>
                           <TableCell className="text-right">
                             <Badge variant={getRatioBadgeVariant(yearlyData.total.lossRatioPct)}>
@@ -366,7 +593,7 @@ export default function YearlyOverviewPage() {
                           </TableCell>
                           <TableCell className="text-right">
                             <span className={`font-mono ${yearlyData.total.technicalResult >= 0 ? "text-green-600" : "text-red-600"}`}>
-                              {formatKDNumeric(yearlyData.total.technicalResult)}
+                              {formatCurrencyNumeric(yearlyData.total.technicalResult)}
                             </span>
                           </TableCell>
                           <TableCell className="text-right">
@@ -402,9 +629,10 @@ export default function YearlyOverviewPage() {
       </div>
 
       {/* ChatBot */}
-      <ChatBot />
+      {!hideChatBot && <ChatBot />}
     </div>
   );
 }
-
-
+export default function YearlyOverviewPage() {
+  return <YearlyOverviewContent />;
+}

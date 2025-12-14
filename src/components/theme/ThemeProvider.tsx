@@ -21,8 +21,9 @@ export function ThemeProvider({
   return (
     <NextThemeProvider
       attribute="class"
-      defaultTheme="system"
-      enableSystem
+      defaultTheme="dark"
+      forcedTheme="dark"
+      enableSystem={false}
       disableTransitionOnChange
       {...props}
     >
@@ -32,15 +33,11 @@ export function ThemeProvider({
 }
 
 function ThemeContextProvider({ children }: { children: React.ReactNode }) {
-  const { theme, setTheme } = useNextTheme();
-  const [isDark, setIsDark] = useState(false);
+  const [isDark] = useState(true);
 
-  useEffect(() => {
-    setIsDark(theme === 'dark');
-  }, [theme]);
-
+  // Theme is always dark, no toggle functionality
   const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark');
+    // No-op: theme switching is disabled
   };
 
   return (

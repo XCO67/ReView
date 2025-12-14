@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 interface SearchableSelectProps {
   label: string;
   value: string | null;
-  options: string[];
+  options: string[] | Array<{ value: string; label: string }>;
   onChange: (value: string | null) => void;
   placeholder?: string;
 }
@@ -27,17 +27,24 @@ export function SearchableSelect({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Normalize options to always have value and label
+  const normalizedOptions = useMemo(() => {
+    return options.map(opt => 
+      typeof opt === 'string' ? { value: opt, label: opt } : opt
+    );
+  }, [options]);
+
   // Filter options based on search query
   const filteredOptions = useMemo(() => {
     if (!searchQuery.trim()) {
-      return options;
+      return normalizedOptions;
     }
     
     const query = searchQuery.toLowerCase();
-    return options.filter(option => 
-      option.toLowerCase().includes(query)
+    return normalizedOptions.filter(option => 
+      option.label.toLowerCase().includes(query)
     ).slice(0, 50); // Limit to 50 results for performance
-  }, [options, searchQuery]);
+  }, [normalizedOptions, searchQuery]);
 
   // Clear search when value changes externally
   useEffect(() => {
@@ -68,8 +75,8 @@ export function SearchableSelect({
     };
   }, [isSearchOpen]);
 
-  const handleSelectOption = (option: string) => {
-    onChange(option);
+  const handleSelectOption = (optionValue: string) => {
+    onChange(optionValue);
     setIsSearchOpen(false);
     setSearchQuery('');
   };
@@ -80,7 +87,7 @@ export function SearchableSelect({
     setIsSearchOpen(false);
   };
 
-  const hasSearch = options.length > 10;
+  const hasSearch = normalizedOptions.length > 10;
 
   return (
     <div className="space-y-2" ref={containerRef}>
@@ -99,18 +106,13 @@ export function SearchableSelect({
                 <SelectTrigger className="h-9 text-sm flex-1">
                   <SelectValue placeholder={placeholder} />
                 </SelectTrigger>
-                <SelectContent className="max-h-[200px]">
+                <SelectContent className="max-h-[300px] overflow-y-auto">
                   <SelectItem value="all">All {label}</SelectItem>
-                  {options.slice(0, 100).map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
+                  {normalizedOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
                     </SelectItem>
                   ))}
-                  {options.length > 100 && (
-                    <div className="px-2 py-1 text-xs text-muted-foreground">
-                      Showing first 100 of {options.length} options. Use search for more.
-                    </div>
-                  )}
                 </SelectContent>
               </Select>
               <Button
@@ -173,12 +175,12 @@ export function SearchableSelect({
                     <div className="p-1">
                       {filteredOptions.map((option) => (
                         <button
-                          key={option}
+                          key={option.value}
                           type="button"
-                          onClick={() => handleSelectOption(option)}
+                          onClick={() => handleSelectOption(option.value)}
                           className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-accent focus:bg-accent focus:outline-none transition-colors"
                         >
-                          {option}
+                          {option.label}
                         </button>
                       ))}
                       {filteredOptions.length === 50 && (
@@ -207,11 +209,11 @@ export function SearchableSelect({
             <SelectTrigger className="h-9 text-sm flex-1">
               <SelectValue placeholder={placeholder} />
             </SelectTrigger>
-            <SelectContent className="max-h-[200px]">
+            <SelectContent className="max-h-[300px] overflow-y-auto">
               <SelectItem value="all">All {label}</SelectItem>
-              {options.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {option}
+              {normalizedOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
                 </SelectItem>
               ))}
             </SelectContent>
