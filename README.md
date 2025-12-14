@@ -99,7 +99,6 @@ ReView/
 │   ├── components/       # Reusable React components
 │   ├── lib/             # Utility functions and business logic
 │   └── contexts/        # React context providers
-├── scripts/             # Database scripts and utilities
 ├── public/              # Static assets
 └── package.json         # Dependencies and scripts
 ```
@@ -110,8 +109,6 @@ ReView/
 - `npm run build` - Build for production
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
-- `` - Update database schema
-- `npm run import:csv` - Import data from CSV file
 
 ## Database Setup
 
