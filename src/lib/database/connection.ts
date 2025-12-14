@@ -24,6 +24,12 @@ let pool: Pool | null = null;
 function getConnectionString(): string {
   const connectionString = process.env.DATABASE_URL;
   if (connectionString) {
+    // Validate that it's not pointing to localhost in production
+    if ((process.env.NODE_ENV === 'production' || process.env.VERCEL) && connectionString.includes('localhost')) {
+      throw new Error(
+        'DATABASE_URL cannot point to localhost in production. Please use a cloud database (Supabase, AWS RDS, etc.) and update your DATABASE_URL in Vercel environment variables.'
+      );
+    }
     return connectionString;
   }
 
@@ -31,6 +37,15 @@ function getConnectionString(): string {
 
   if (DB_HOST && DB_NAME && DB_USER && DB_PASSWORD) {
     const host = DB_HOST.trim();
+    
+    // Validate that host is not localhost in production
+    if ((process.env.NODE_ENV === 'production' || process.env.VERCEL) && 
+        (host === 'localhost' || host === '127.0.0.1' || host.startsWith('localhost:'))) {
+      throw new Error(
+        'DB_HOST cannot be localhost in production. Please use a cloud database hostname and update your environment variables in Vercel.'
+      );
+    }
+    
     const port = DB_PORT ? DB_PORT.trim() : '5432';
     const database = DB_NAME.trim();
     const user = encodeURIComponent(DB_USER.trim());
@@ -39,7 +54,8 @@ function getConnectionString(): string {
   }
 
   throw new Error(
-    'DATABASE_URL or DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD environment variables must be set'
+    'DATABASE_URL or DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD environment variables must be set. ' +
+    'For Vercel deployment, you must use a cloud database (not localhost).'
   );
 }
 
