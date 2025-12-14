@@ -14,9 +14,23 @@ import { safeError, sanitizeError } from '@/lib/security-utils';
 export async function POST(request: NextRequest) {
   try {
     // Initialize database if needed
-    await initDb();
+    try {
+      await initDb();
+    } catch (dbError) {
+      console.error('Database initialization error:', dbError);
+      return NextResponse.json(
+        { error: 'Database connection failed. Please check your database configuration.' },
+        { status: 500 }
+      );
+    }
+    
     // Setup default admin user
-    await setupDefaultAdmin();
+    try {
+      await setupDefaultAdmin();
+    } catch (adminError) {
+      console.error('Admin setup error:', adminError);
+      // Don't fail login if admin setup fails, just log it
+    }
 
     const { username, password } = await request.json();
 
