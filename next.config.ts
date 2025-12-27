@@ -10,7 +10,8 @@ const nextConfig: NextConfig = {
   compress: true,
   
   // Output configuration for Docker
-  output: 'standalone',
+  // Using default output mode for Railway (standalone causes issues with npm start)
+  // output: 'standalone',
   
   // TypeScript configuration
   typescript: {
