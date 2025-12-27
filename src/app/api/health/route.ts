@@ -22,11 +22,24 @@ export async function GET() {
   // Test database connection
   try {
     const db = getDb();
-    await db.query('SELECT 1');
+    const result = await db.query('SELECT 1 as test, NOW() as current_time');
     health.checks.database = 'connected';
+    health.checks.databaseTime = result.rows[0]?.current_time;
   } catch (error) {
     health.status = 'degraded';
-    health.checks.database = `error: ${error instanceof Error ? error.message : 'unknown'}`;
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    health.checks.database = `error: ${errorMsg}`;
+    
+    // Add helpful error details
+    if (errorMsg.includes('timeout')) {
+      health.checks.databaseError = 'Connection timeout - check network/firewall';
+    } else if (errorMsg.includes('password') || errorMsg.includes('authentication')) {
+      health.checks.databaseError = 'Authentication failed - check DATABASE_URL credentials';
+    } else if (errorMsg.includes('ENOTFOUND') || errorMsg.includes('getaddrinfo')) {
+      health.checks.databaseError = 'DNS resolution failed - check DATABASE_URL hostname';
+    } else if (errorMsg.includes('SSL') || errorMsg.includes('certificate')) {
+      health.checks.databaseError = 'SSL connection issue - Supabase requires SSL';
+    }
   }
 
   const statusCode = health.status === 'ok' ? 200 : 503;

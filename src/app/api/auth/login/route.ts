@@ -18,8 +18,17 @@ export async function POST(request: NextRequest) {
       await initDb();
     } catch (dbError) {
       console.error('Database initialization error:', dbError);
+      const errorMessage = dbError instanceof Error ? dbError.message : String(dbError);
+      console.error('Full error details:', {
+        message: errorMessage,
+        stack: dbError instanceof Error ? dbError.stack : undefined,
+        databaseUrl: process.env.DATABASE_URL ? 'SET' : 'MISSING',
+      });
       return NextResponse.json(
-        { error: 'Database connection failed. Please check your database configuration.' },
+        { 
+          error: 'Database connection failed. Please check your database configuration.',
+          details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        },
         { status: 500 }
       );
     }

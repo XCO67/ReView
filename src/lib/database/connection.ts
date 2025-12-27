@@ -74,12 +74,23 @@ export function getDb(): Pool {
 
   const connectionString = getConnectionString();
 
+  // Supabase and most cloud databases require SSL in production
+  const requiresSSL = process.env.NODE_ENV === 'production' || 
+                     process.env.VERCEL || 
+                     connectionString.includes('supabase') ||
+                     connectionString.includes('pooler.supabase');
+  
   pool = new Pool({
     connectionString,
     max: Number(process.env.DB_POOL_MAX ?? '10'),
     idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS ?? '30000'),
-    connectionTimeoutMillis: Number(process.env.DB_CONN_TIMEOUT_MS ?? '20000'), // Increased timeout for cloud DBs
-    ssl: process.env.NODE_ENV === 'production' || process.env.VERCEL ? { rejectUnauthorized: false } : false,
+    connectionTimeoutMillis: Number(process.env.DB_CONN_TIMEOUT_MS ?? '30000'), // Increased for Supabase pooler
+    ssl: requiresSSL ? { rejectUnauthorized: false } : false,
+  });
+
+  // Test connection immediately and log errors
+  pool.on('error', (err) => {
+    console.error('Unexpected database pool error:', err);
   });
 
   return pool;
