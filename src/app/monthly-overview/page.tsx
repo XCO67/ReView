@@ -55,7 +55,7 @@ interface MonthlyOverviewData {
   };
 }
 
-export function MonthlyOverviewContent() {
+function MonthlyOverviewContent() {
   const { formatCurrency, formatCurrencyNumeric } = useFormatCurrency();
   const { isAdmin } = useUserRoles();
   const [data, setData] = useState<ReinsuranceData[]>([]);
