@@ -16,7 +16,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "build:turbo": "next build --turbopack",
-    "start": "next start -H 0.0.0.0",
+    "start": "node server.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "type-check": "tsc --noEmit",
