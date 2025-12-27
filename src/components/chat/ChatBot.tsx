@@ -53,7 +53,9 @@ export function ChatBot({ className }: ChatBotProps) {
 
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
   }, [messages, isTyping]);
 
   // Focus input when chat opens
@@ -79,6 +81,11 @@ export function ChatBot({ className }: ChatBotProps) {
     const currentInput = input.trim();
     setInput('');
     setIsTyping(true);
+    
+    // Keep input focused after sending
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 50);
 
     try {
       // Call your API route
@@ -175,7 +182,7 @@ export function ChatBot({ className }: ChatBotProps) {
         transition={{ duration: 0.3, type: 'spring', damping: 25 }}
         className={`fixed right-6 bottom-6 z-50 ${className} ${isMinimized ? 'w-80' : 'w-[420px]'} h-[600px]`}
       >
-        <Card className="h-full flex flex-col shadow-2xl border border-border/50 bg-background/98 backdrop-blur-xl rounded-2xl overflow-hidden">
+        <Card className="h-full w-full flex flex-col shadow-2xl border border-border/50 bg-background/98 backdrop-blur-xl rounded-2xl overflow-hidden">
         <CardHeader className="pb-3 pt-4 px-5 flex-shrink-0 border-b bg-gradient-to-r from-primary/5 to-primary/10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -209,11 +216,11 @@ export function ChatBot({ className }: ChatBotProps) {
         </CardHeader>
         
         {!isMinimized && (
-          <CardContent className="flex flex-col h-full p-0">
+          <CardContent className="flex flex-col h-full p-0 overflow-hidden">
             {/* Messages Container - Scrollable */}
             <div 
               ref={messagesContainerRef}
-              className="flex-1 overflow-y-auto px-5 py-5 space-y-4 min-h-0"
+              className="flex-1 overflow-y-auto px-5 py-5 space-y-4 min-h-0 flex-shrink"
             >
               <AnimatePresence>
                 {messages.map((message, index) => (
@@ -276,7 +283,7 @@ export function ChatBot({ className }: ChatBotProps) {
             </div>
 
             {/* Input Section - Fixed at bottom */}
-            <div className="border-t bg-gradient-to-t from-background to-background/95 backdrop-blur-sm px-5 py-4 space-y-3">
+            <div className="flex-shrink-0 border-t bg-gradient-to-t from-background to-background/95 backdrop-blur-sm px-5 py-4 space-y-3">
               {/* Quick Actions */}
               <div className="flex flex-wrap gap-2">
                 <Button
