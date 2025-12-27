@@ -44,12 +44,12 @@ export async function verifySessionToken(token?: string): Promise<SessionPayload
 }
 
 export function setSessionCookie(token: string, target: ResponseCookies) {
-  const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+  const isProduction = process.env.NODE_ENV === 'production';
   target.set({
     name: SESSION_COOKIE,
     value: token,
     httpOnly: true,
-    secure: isProduction, // Use HTTPS in production/Vercel
+    secure: isProduction, // Use HTTPS in production (Railway provides HTTPS)
     sameSite: 'lax',
     path: '/',
     maxAge: SESSION_TTL_SECONDS,

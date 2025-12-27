@@ -60,9 +60,9 @@ function getConnectionString(): string {
     }
     
     // Validate that it's not pointing to localhost in production
-    if ((process.env.NODE_ENV === 'production' || process.env.VERCEL) && connectionString.includes('localhost')) {
+    if (process.env.NODE_ENV === 'production' && connectionString.includes('localhost')) {
       throw new Error(
-        'DATABASE_URL cannot point to localhost in production. Please use a cloud database (Supabase, AWS RDS, etc.) and update your DATABASE_URL in Vercel environment variables.'
+        'DATABASE_URL cannot point to localhost in production. Please use your Railway PostgreSQL database and update your DATABASE_URL in Railway environment variables.'
       );
     }
     return connectionString;
@@ -74,10 +74,10 @@ function getConnectionString(): string {
     const host = DB_HOST.trim();
     
     // Validate that host is not localhost in production
-    if ((process.env.NODE_ENV === 'production' || process.env.VERCEL) && 
+    if (process.env.NODE_ENV === 'production' && 
         (host === 'localhost' || host === '127.0.0.1' || host.startsWith('localhost:'))) {
       throw new Error(
-        'DB_HOST cannot be localhost in production. Please use a cloud database hostname and update your environment variables in Vercel.'
+        'DB_HOST cannot be localhost in production. Please use your Railway PostgreSQL database hostname and update your environment variables in Railway.'
       );
     }
     
@@ -90,7 +90,7 @@ function getConnectionString(): string {
 
   throw new Error(
     'DATABASE_URL or DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD environment variables must be set. ' +
-    'For Vercel deployment, you must use a cloud database (not localhost).'
+    'Please configure your Railway PostgreSQL database connection in Railway environment variables.'
   );
 }
 
@@ -109,17 +109,16 @@ export function getDb(): Pool {
 
   const connectionString = getConnectionString();
 
-  // Supabase and most cloud databases require SSL in production
-  const requiresSSL = process.env.NODE_ENV === 'production' || 
-                     process.env.VERCEL || 
-                     connectionString.includes('supabase') ||
-                     connectionString.includes('pooler.supabase');
+  // Railway PostgreSQL doesn't require SSL for internal connections
+  // Only enable SSL if explicitly required or for external connections
+  const requiresSSL = connectionString.includes('ssl=true') || 
+                     connectionString.includes('sslmode=require');
   
   pool = new Pool({
     connectionString,
     max: Number(process.env.DB_POOL_MAX ?? '10'),
     idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS ?? '30000'),
-    connectionTimeoutMillis: Number(process.env.DB_CONN_TIMEOUT_MS ?? '30000'), // Increased for Supabase pooler
+    connectionTimeoutMillis: Number(process.env.DB_CONN_TIMEOUT_MS ?? '20000'),
     ssl: requiresSSL ? { rejectUnauthorized: false } : false,
   });
 
