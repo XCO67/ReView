@@ -12,6 +12,18 @@ const nextConfig: NextConfig = {
   // Output configuration for Docker
   output: 'standalone',
   
+  // TypeScript configuration
+  typescript: {
+    // Don't fail build on type errors during build (warnings only)
+    ignoreBuildErrors: false,
+  },
+  
+  // ESLint configuration
+  eslint: {
+    // Don't fail build on ESLint errors (warnings only)
+    ignoreDuringBuilds: false,
+  },
+  
   // Security: Remove console logs in production
   ...(process.env.NODE_ENV === 'production' && {
     webpack: (config, { isServer }) => {
