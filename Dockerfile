@@ -20,11 +20,12 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-# Clean any existing build artifacts and TypeScript cache
-RUN rm -rf .next tsconfig.tsbuildinfo node_modules/.cache 2>/dev/null || true
+# Force clean build - remove all caches and build artifacts
+RUN rm -rf .next tsconfig.tsbuildinfo node_modules/.cache .turbo 2>/dev/null || true
+RUN find . -name "*.tsbuildinfo" -delete 2>/dev/null || true
 
-# Build the application with clean cache
-RUN npm run build -- --no-cache || npm run build
+# Build the application
+RUN npm run build
 
 # Production image, copy all the files and run next
 FROM base AS runner
