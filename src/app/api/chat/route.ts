@@ -81,8 +81,8 @@ ${dataContext}
 
 Answer questions about loss ratios, premiums, claims, brokers, cedants, countries, regions, and KPIs. Be brief and direct.`
       },
-      ...(conversationHistory as ConversationMessage[]).slice(-10).map((msg) => ({
-        role: msg.role === 'user' ? 'user' : 'assistant',
+      ...(conversationHistory as ConversationMessage[]).slice(-10).map((msg): ChatMessage => ({
+        role: (msg.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
         content: msg.content
       })),
       {
