@@ -4,9 +4,16 @@ import { filterByRole } from '@/lib/role-filter';
 import { loadUWData } from '@/lib/uw-data';
 import { aggregateKPIs } from '@/lib/kpi';
 import { logger } from '@/lib/utils/logger';
+import type { ReinsuranceData } from '@/lib/validation/schema';
+import type { KPIData } from '@/lib/validation/schema';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+interface ConversationMessage {
+  role: 'user' | 'assistant';
   content: string;
 }
 
@@ -74,7 +81,7 @@ ${dataContext}
 
 Answer questions about loss ratios, premiums, claims, brokers, cedants, countries, regions, and KPIs. Be brief and direct.`
       },
-      ...conversationHistory.slice(-10).map((msg: any) => ({
+      ...(conversationHistory as ConversationMessage[]).slice(-10).map((msg) => ({
         role: msg.role === 'user' ? 'user' : 'assistant',
         content: msg.content
       })),
@@ -160,7 +167,7 @@ Answer questions about loss ratios, premiums, claims, brokers, cedants, countrie
   }
 }
 
-function buildDataContext(data: any[], kpis: any): string {
+function buildDataContext(data: ReinsuranceData[], kpis: KPIData): string {
   if (data.length === 0) {
     return 'No data available in the system.';
   }
