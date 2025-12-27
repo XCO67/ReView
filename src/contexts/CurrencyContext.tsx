@@ -1,8 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-
-type Currency = 'KWD' | 'USD';
+import { logger } from '@/lib/utils/logger';type Currency = 'KWD' | 'USD';
 
 interface CurrencyContextType {
   currency: Currency;
@@ -52,7 +51,7 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         // Silently fallback to default rate - don't log in production
         if (process.env.NODE_ENV === 'development') {
-          console.warn('Failed to fetch exchange rate, using default:', error);
+          logger.warn('Failed to fetch exchange rate, using default:', { context: error });
         }
         // Ensure default rate is always set
         setExchangeRate(DEFAULT_EXCHANGE_RATE);

@@ -36,8 +36,7 @@ import { CurrencyLabel } from '@/components/currency/CurrencyLabel';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { ChatBot } from '@/components/chat/ChatBot';
 import { ReinsuranceData } from '@/lib/schema';
-
-interface YearlyData {
+import { logger } from '@/lib/utils/logger';interface YearlyData {
   year: number;
   policyCount: number;
   premium: number;
@@ -138,7 +137,7 @@ export function YearlyOverviewContent({ hideChatBot = false }: { hideChatBot?: b
         const dataResult = await dataResponse.json();
         setData(dataResult.data);
       } catch (error) {
-        console.error('Yearly Overview - Failed to load data:', error);
+        logger.error('Yearly Overview - Failed to load data', error);
       }
     };
     loadData();
@@ -186,7 +185,7 @@ export function YearlyOverviewContent({ hideChatBot = false }: { hideChatBot?: b
         setYearlyData(data);
         setLastUpdated(new Date());
       } catch (error) {
-        console.error('Yearly Overview - Failed to load yearly data:', error);
+        logger.error('Yearly Overview - Failed to load yearly data', error);
         setYearlyData(null);
       } finally {
         setIsLoading(false);
@@ -237,7 +236,7 @@ export function YearlyOverviewContent({ hideChatBot = false }: { hideChatBot?: b
         setYearlyData(data);
         setLastUpdated(new Date());
       } catch (error) {
-        console.error('Yearly Overview - Failed to refresh data:', error);
+        logger.error('Yearly Overview - Failed to refresh data', error);
       } finally {
         setIsLoading(false);
       }

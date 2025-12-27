@@ -1,27 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Security: Disable source maps in production to prevent code inspection
   productionBrowserSourceMaps: false,
-  
-  // Security: Disable source maps for server-side code
-  
-  // Security: Compress and optimize output
   compress: true,
   
-  // Output configuration for Docker
-  // Using default output mode for Railway (standalone causes issues with npm start)
-  // output: 'standalone',
-  
-  // TypeScript configuration
   typescript: {
-    // Don't fail build on type errors during build (warnings only)
     ignoreBuildErrors: false,
   },
   
-  // ESLint configuration
   eslint: {
-    // Don't fail build on ESLint errors (warnings only)
     ignoreDuringBuilds: false,
   },
   
@@ -31,11 +18,9 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-select'],
   },
   
-  // Security: Remove console logs in production
   ...(process.env.NODE_ENV === 'production' && {
     webpack: (config, { isServer }) => {
       if (!isServer) {
-        // Remove console.log in production client bundles
         config.optimization = {
           ...config.optimization,
           minimize: true,
@@ -45,7 +30,6 @@ const nextConfig: NextConfig = {
     },
   }),
   
-  // Security headers (additional layer)
   async headers() {
     return [
       {

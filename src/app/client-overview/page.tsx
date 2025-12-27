@@ -39,8 +39,7 @@ import { ReinsuranceData } from '@/lib/schema';
 import { ChatBot } from '@/components/chat/ChatBot';
 import { UniversalFilterState } from '@/components/filters/UniversalFilterPanel';
 import { TopFilterPanel } from '@/components/filters/TopFilterPanel';
-
-type ClientType = 'broker' | 'cedant';
+import { logger } from '@/lib/utils/logger';type ClientType = 'broker' | 'cedant';
 
 // Normalized row interface according to spec
 interface NormalizedRow {
@@ -343,7 +342,7 @@ export default function ClientOverviewPage() {
         setIndexes(null);
       }
     } catch (error) {
-      console.error('Client Overview - Error loading data:', error);
+      logger.error('Client Overview - Error loading data', error);
       setRawData([]);
       setNormalizedRows([]);
       setIndexes(null);

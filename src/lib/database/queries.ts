@@ -10,8 +10,7 @@
 import { getDb } from './connection';
 import type { User, Role, UserWithRoles, CreateUserInput, UpdateUserInput } from './types';
 import { hashPassword, verifyPassword as verifyPasswordSecure, validatePassword } from '../auth/password';
-
-/**
+import { logger } from '@/lib/utils/logger';/**
  * Retrieves a user by their email address.
  * 
  * @param {string} email - The email address to search for
@@ -372,7 +371,7 @@ export async function cleanupDuplicateRoles(): Promise<void> {
     `, [canonicalId]);
     
   } catch (error) {
-    console.error('Error cleaning up duplicate roles:', error);
+    logger.error('Error cleaning up duplicate roles', error);
     // Don't throw - allow the query to continue
   }
 }

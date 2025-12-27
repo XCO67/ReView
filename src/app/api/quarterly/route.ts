@@ -7,6 +7,7 @@ import { getSessionFromRequest } from '@/lib/session';
 import { filterByRole } from '@/lib/role-filter';
 import { extractYear, extractQuarter } from '@/lib/utils/date-helpers';
 import { applyFilters, extractFilterParams } from '@/lib/utils/data-filters';
+import { logger } from '@/lib/utils/logger';
 
 // Time normalization according to spec
 // Uses UY for year and inceptionQuarter for quarter
@@ -183,10 +184,9 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Quarterly API - Error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch quarterly data';
+    logger.error('Quarterly data API request failed', error);
     return NextResponse.json(
-      { error: errorMessage },
+      { error: 'Failed to fetch quarterly data' },
       {
         status: 500,
         headers: {

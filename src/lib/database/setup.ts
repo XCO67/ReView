@@ -1,5 +1,6 @@
 import { getDb } from './connection';
 import { hashPassword } from '../auth/password';
+import { logger } from '@/lib/utils/logger';
 
 type SeedUserOptions = {
   username: string;
@@ -60,9 +61,10 @@ function resolveCredential({
     return value.trim();
   }
 
-  console.warn(
-    `[setup-admin] ${name} is not set or too short; using fallback value. Update your .env to override this default.`
-  );
+  // Log warning in development only
+  if (process.env.NODE_ENV === 'development') {
+    logger.warn(`${name} is not set or too short; using fallback value. Update your .env to override this default.`);
+  }
   return fallback;
 }
 

@@ -44,10 +44,7 @@ function getConnectionString(): string {
         );
       }
       
-      // Log hostname in development for debugging
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('Database hostname:', url.hostname);
-      }
+      // Hostname validation complete
     } catch (urlError) {
       if (urlError instanceof TypeError) {
         throw new Error(
@@ -122,9 +119,10 @@ export function getDb(): Pool {
     ssl: requiresSSL ? { rejectUnauthorized: false } : false,
   });
 
-  // Test connection immediately and log errors
-  pool.on('error', (err) => {
-    console.error('Unexpected database pool error:', err);
+  // Handle connection pool errors
+  pool.on('error', () => {
+    // Database pool errors are handled by query error handlers
+    // This prevents unhandled promise rejections
   });
 
   return pool;

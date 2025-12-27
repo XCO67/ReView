@@ -6,8 +6,7 @@ import type { RenewalSummary, RenewalFilterOptions } from "@/lib/renewals";
 import { RenewalSummaryGrid } from "./renewal-summary-grid";
 import { RenewalTable } from "./RenewalTable";
 import { Loader2 } from "lucide-react";
-
-interface RenewalFiltersClientProps {
+import { logger } from '@/lib/utils/logger';interface RenewalFiltersClientProps {
   initialYear: string | undefined;
   initialQuarter: string | undefined;
   initialSummary: RenewalSummary;
@@ -100,7 +99,7 @@ export function RenewalFiltersClient({
       
       setSummary(data);
     } catch (error) {
-      console.error('Error fetching renewals:', error);
+      logger.error('Error fetching renewals', error);
       // Set empty summary on error to prevent crashes
       setSummary({
         totalCount: 0,

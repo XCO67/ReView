@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/utils/logger';
 
 // KWD to USD exchange rate
 // In production, you would fetch this from a real API like:
@@ -31,7 +32,7 @@ export async function GET() {
       source: 'default' // Change to 'api' when using real API
     });
   } catch (error) {
-    console.error('Error fetching exchange rate:', error);
+    logger.error('Error fetching exchange rate', error);
     return NextResponse.json(
       { rate: DEFAULT_RATE, error: 'Failed to fetch exchange rate' },
       { status: 500 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRenewalFilterOptions } from '@/lib/renewals';
 import { getSessionFromRequest } from '@/lib/session';
 import { getAllowedClasses } from '@/lib/role-filter';
+import { logger } from '@/lib/utils/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json(filterOptions);
   } catch (error) {
-    console.error('Filter options API error:', error);
+    logger.error('Filter options API error', error);
     return NextResponse.json({ error: 'Failed to load filter options' }, { status: 500 });
   }
 }

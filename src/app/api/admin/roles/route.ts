@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { createRole, getAllRoles } from '@/lib/db-queries';
 import { initDb } from '@/lib/db';
+import { logger } from '@/lib/utils/logger';
 
 export async function GET() {
   try {
@@ -19,7 +20,7 @@ export async function GET() {
 
     return NextResponse.json(roles);
   } catch (error) {
-    console.error('Get roles error:', error);
+    logger.error('Failed to fetch roles', error);
     return NextResponse.json(
       { error: 'Failed to fetch roles' },
       { status: 500 }
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
     const role = await createRole(name.trim(), description || null);
     return NextResponse.json(role);
   } catch (error) {
-    console.error('Create role error:', error);
+    logger.error('Failed to create role', error);
     
     if (error instanceof Error && error.message.includes('unique')) {
       return NextResponse.json(

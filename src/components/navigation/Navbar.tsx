@@ -40,6 +40,7 @@ import {
 import { BrandLogo } from "@/components/BrandLogo";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { isAdmin, getRoleDisplayName, getPrimaryRole, getRoleDashboardDescription } from "@/lib/role-filter";
+import { logger } from '@/lib/utils/logger';
 
 const navigation = [
   { name: "Renewals", href: "/renewals", icon: RefreshCw },
@@ -89,7 +90,7 @@ export function Navbar() {
           });
         }
       } catch (error) {
-        console.error("Failed to fetch user info:", error);
+        logger.error('Failed to fetch user info', error);
       }
     };
     fetchUserInfo();

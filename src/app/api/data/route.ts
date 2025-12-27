@@ -7,6 +7,7 @@ import { getSessionFromRequest } from '@/lib/session';
 import { filterByRole } from '@/lib/role-filter';
 import { applyFilters, extractFilterParams } from '@/lib/utils/data-filters';
 import { MAX_DATA_LIMIT } from '@/lib/constants/filters';
+import { logger } from '@/lib/utils/logger';
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
     try {
       session = await getSessionFromRequest(req);
     } catch (sessionError) {
-      console.warn('Session error (continuing without role filtering):', sessionError);
+      logger.warn('Session validation failed, continuing without role filtering', { error: sessionError });
       session = null;
     }
     
@@ -36,20 +37,17 @@ export async function GET(req: NextRequest) {
     try {
       allData = await loadUWData({ forceReload });
     } catch (loadError) {
-      console.error('Failed to load UW data:', loadError);
-      const errorMessage = loadError instanceof Error ? loadError.message : String(loadError);
+      logger.error('Failed to load underwriting data', loadError);
       return NextResponse.json({ 
-        error: 'Failed to load data from database',
-        details: process.env.NODE_ENV === 'development' ? errorMessage : 'Database connection error'
+        error: 'Failed to load data from database'
       }, { status: 500 });
     }
     
     // Ensure we have data
     if (!Array.isArray(allData)) {
-      console.error('loadUWData returned non-array:', typeof allData);
+      logger.error('Invalid data format received from loadUWData', { type: typeof allData });
       return NextResponse.json({ 
-        error: 'Invalid data format received',
-        details: 'Expected array but got ' + typeof allData
+        error: 'Invalid data format received'
       }, { status: 500 });
     }
     
@@ -71,16 +69,9 @@ export async function GET(req: NextRequest) {
       message: `Loaded ${limitedData.length} records`
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack : undefined;
-    
-    console.error('API error:', error);
-    console.error('Error stack:', errorStack);
-    
+    logger.error('Data API request failed', error);
     return NextResponse.json({ 
-      error: 'Failed to fetch data',
-      details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
-      stack: process.env.NODE_ENV === 'development' ? errorStack : undefined
+      error: 'Failed to fetch data'
     }, { status: 500 });
   }
 }

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionFromRequest } from '@/lib/session';
 import { loadUWData } from '@/lib/uw-data';
 import { filterByRole } from '@/lib/role-filter';
+import { logger } from '@/lib/utils/logger';
 
 export async function GET(req: NextRequest) {
   try {
@@ -36,11 +37,11 @@ export async function GET(req: NextRequest) {
         technicalResult: 0,
         combinedRatioPct: 0,
       },
-      message: "Database implementation removed - ready for PostgreSQL",
-      filteredRecords: roleFilteredData.length // For debugging
+      message: "Monthly data aggregation",
+      filteredRecords: roleFilteredData.length
     });
   } catch (error) {
-    console.error('Failed to fetch monthly data:', error);
+    logger.error('Failed to fetch monthly data', error);
     return NextResponse.json({ error: 'Failed to fetch monthly data' }, { status: 500 });
   }
 }

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronUp, X } from "lucide-react";
 import type { RenewalFilterOptions } from "@/lib/renewals";
 import { MultiSelect } from "@/components/filters/MultiSelect";
+import { logger } from '@/lib/utils/logger';
 
 const YEARS = ["2020", "2021", "2022", "2023", "2024", "2025"];
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
@@ -112,7 +113,7 @@ export function RenewalFilters({
           setDynamicFilterOptions(options);
         }
       } catch (error) {
-        console.error('Failed to fetch filter options:', error);
+        logger.error('Failed to fetch filter options', error);
       }
     };
     

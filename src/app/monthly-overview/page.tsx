@@ -25,6 +25,7 @@ import { CurrencyLabel } from '@/components/currency/CurrencyLabel';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { ReinsuranceData } from "@/lib/schema";
 import { aggregateKPIs } from "@/lib/kpi";
+import { logger } from '@/lib/utils/logger';
 
 const monthLabels = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -258,7 +259,7 @@ export default function MonthlyOverviewPage() {
         setData(dataResult.data);
         setLastUpdated(new Date());
       } catch (error) {
-        console.error('Error loading data:', error);
+        logger.error('Error loading data', error);
       } finally {
         setIsLoading(false);
       }

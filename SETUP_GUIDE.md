@@ -52,7 +52,6 @@ DEFAULT_ADMIN_PASSWORD=KuwaitRe2024!Secure
 ### Start Development Server
 
 ```bash
-cd "C:\Users\USER\Desktop\ReView\ReView"
 npm run dev
 ```
 

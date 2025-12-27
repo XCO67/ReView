@@ -25,8 +25,7 @@ import WorldMap, { BaseCountryData } from '@/components/charts/WorldMap';
 import { UniversalFilterState } from '@/components/filters/UniversalFilterPanel';
 import { TopFilterPanel } from '@/components/filters/TopFilterPanel';
 import { ReinsuranceData } from '@/lib/schema';
-
-interface CountryData extends BaseCountryData {
+import { logger } from '@/lib/utils/logger';interface CountryData extends BaseCountryData {
   records?: CountryDetailRecord[];
   yearly?: CountryYearSummary[];
 }
@@ -147,7 +146,7 @@ export default function WorldMapPage() {
           setAllData(result.data || []);
         }
       } catch (error) {
-        console.error('Failed to load data for filters:', error);
+        logger.error('Failed to load data for filters', error);
       }
     };
     loadData();
@@ -178,7 +177,7 @@ export default function WorldMapPage() {
         });
       }
     } catch (error) {
-      console.error('World Map - Failed to load world data:', error);
+      logger.error('World Map - Failed to load world data', error);
       setWorldData(null);
     } finally {
       setIsLoading(false);

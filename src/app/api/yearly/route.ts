@@ -7,6 +7,7 @@ import { getSessionFromRequest } from '@/lib/session';
 import { filterByRole } from '@/lib/role-filter';
 import { applyFilters, extractFilterParams } from '@/lib/utils/data-filters';
 import { extractYear } from '@/lib/utils/date-helpers';
+import { logger } from '@/lib/utils/logger';
 
 export async function GET(req: NextRequest) {
   try {
@@ -147,10 +148,9 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Yearly API - Error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch yearly data';
+    logger.error('Yearly data API request failed', error);
     return NextResponse.json(
-      { error: errorMessage },
+      { error: 'Failed to fetch yearly data' },
       {
         status: 500,
         headers: {

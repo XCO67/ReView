@@ -9,6 +9,7 @@ import { normalizeCountryName } from '@/lib/country-normalization';
 import { getNormalizedStates } from '@/lib/state-normalization';
 import { getSessionFromRequest } from '@/lib/session';
 import { filterByRole, filterRenewalsByRole } from '@/lib/role-filter';
+import { logger } from '@/lib/utils/logger';
 
 interface CountryDetailRecord {
   uy: string;
@@ -372,7 +373,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('World Map API - Error:', error);
+    logger.error('World map API request failed', error);
     return NextResponse.json({ error: 'Failed to fetch world map data' }, { status: 500 });
   }
 }

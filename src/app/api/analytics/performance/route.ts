@@ -3,6 +3,7 @@ import { loadUWData } from '@/lib/uw-data';
 import { getSessionFromRequest } from '@/lib/session';
 import { getAllowedClasses, filterByRole } from '@/lib/role-filter';
 import { aggregateKPIs } from '@/lib/kpi';
+import { logger } from '@/lib/utils/logger';
 
 interface PolicyPerformanceRecord {
   policyName: string;
@@ -201,7 +202,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Performance API error:', error);
+    logger.error('Performance API error', error);
     return NextResponse.json({ error: 'Failed to load performance data' }, { status: 500 });
   }
 }

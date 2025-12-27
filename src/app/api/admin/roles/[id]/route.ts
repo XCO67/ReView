@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { deleteRole } from '@/lib/db-queries';
 import { initDb } from '@/lib/db';
+import { logger } from '@/lib/utils/logger';
 
 export async function DELETE(
   request: NextRequest,
@@ -32,7 +33,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Delete role error:', error);
+    logger.error('Failed to delete role', error);
     
     if (error instanceof Error && error.message.includes('default')) {
       return NextResponse.json(

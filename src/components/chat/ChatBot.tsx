@@ -16,6 +16,7 @@ import {
   Minimize2,
   Maximize2
 } from 'lucide-react';
+import { logger } from '@/lib/utils/logger';
 
 interface Message {
   id: string;
@@ -53,46 +54,55 @@ export function ChatBot({ className }: ChatBotProps) {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = input.trim();
     setInput('');
     setIsTyping(true);
 
-    // Simulate AI response (replace with actual AI integration later)
-    setTimeout(() => {
+    try {
+      // Call your API route
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: currentInput,
+          conversationHistory: messages.map(m => ({
+            role: m.type === 'user' ? 'user' : 'assistant',
+            content: m.content
+          }))
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to get response');
+      }
+
+      const data = await response.json();
+      
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
-        content: getBotResponse(input.trim()),
+        content: data.response || 'I apologize, but I could not generate a response.',
         timestamp: new Date()
       };
+      
       setMessages(prev => [...prev, botMessage]);
+    } catch (error) {
+      logger.error('Chat error', error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'bot',
+        content: error instanceof Error 
+          ? `Sorry, I encountered an error: ${error.message}. Please try again.`
+          : 'Sorry, I encountered an error. Please try again.',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1000);
-  };
-
-  const getBotResponse = (userInput: string): string => {
-    const input = userInput.toLowerCase();
-    
-    if (input.includes('loss ratio') || input.includes('loss')) {
-      return 'Loss Ratio is calculated as (Paid Claims + Outstanding Claims) / Premium × 100. It measures the percentage of premium used to pay claims. A ratio below 60% is considered excellent.';
     }
-    
-    if (input.includes('premium') || input.includes('revenue')) {
-      return 'Premium represents the total gross underwritten premium from your reinsurance business. You can view premium trends by UY, broker, cedant, or region in the analytics dashboard.';
-    }
-    
-    if (input.includes('filter') || input.includes('search')) {
-      return 'You can filter your data using the focused filters above. Search within any column to find specific values, or select multiple options to narrow down your analysis.';
-    }
-    
-    if (input.includes('export') || input.includes('download')) {
-      return 'You can export filtered data as CSV using the Export button in the filters section. This will download only the data that matches your current filter criteria.';
-    }
-    
-    if (input.includes('help') || input.includes('what can you do')) {
-      return 'I can help you with:\n• Explaining insurance metrics and ratios\n• Analyzing your reinsurance data\n• Understanding dashboard components\n• Filtering and exporting data\n• Interpreting charts and tables\n\nWhat would you like to know?';
-    }
-    
-    return 'I understand you\'re asking about: "' + userInput + '". I\'m here to help with your Kuwait Re analytics. You can ask me about loss ratios, premium analysis, filtering data, or any other questions about your reinsurance dashboard.';
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -248,7 +258,7 @@ export function ChatBot({ className }: ChatBotProps) {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setInput('What is the loss ratio?')}
+                  onClick={() => setInput('What is the current loss ratio and what does it mean?')}
                   className="text-xs h-6"
                 >
                   Loss Ratio
@@ -256,18 +266,26 @@ export function ChatBot({ className }: ChatBotProps) {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setInput('How do I filter data?')}
+                  onClick={() => setInput('Show me the top 5 brokers by premium')}
                   className="text-xs h-6"
                 >
-                  Filter Help
+                  Top Brokers
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setInput('Export data')}
+                  onClick={() => setInput('What countries do we have policies in?')}
                   className="text-xs h-6"
                 >
-                  Export
+                  Countries
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setInput('Explain the combined ratio')}
+                  className="text-xs h-6"
+                >
+                  Combined Ratio
                 </Button>
               </div>
             </div>

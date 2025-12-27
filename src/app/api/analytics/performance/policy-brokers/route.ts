@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { loadUWData } from '@/lib/uw-data';
 import { getSessionFromRequest } from '@/lib/session';
 import { getAllowedClasses, filterByRole } from '@/lib/role-filter';
+import { logger } from '@/lib/utils/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -78,7 +79,7 @@ export async function GET(request: NextRequest) {
       policy: policyName,
     });
   } catch (error) {
-    console.error('Policy brokers API error:', error);
+    logger.error('Policy brokers API error', error);
     return NextResponse.json({ error: 'Failed to load brokers for policy' }, { status: 500 });
   }
 }

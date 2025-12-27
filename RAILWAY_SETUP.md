@@ -14,12 +14,12 @@ Set these in Railway → Your service → **Variables** tab:
 ### Required Variables
 
 ```
-DATABASE_URL=postgresql://postgres:XenBBaaFFFRufRfjMdlLVWfunJZYdqIO@centerbeam.proxy.rlwy.net:37333/railway
-SESSION_SECRET=92caebe9844703a2887089221d1e65df
+DATABASE_URL=postgresql://postgres:[YOUR_PASSWORD]@[YOUR_HOST]:[PORT]/railway
+SESSION_SECRET=[GENERATE_SECURE_SECRET]
 NODE_ENV=production
 DEFAULT_ADMIN_USERNAME=admin
 DEFAULT_ADMIN_EMAIL=admin@kuwaitre.com
-DEFAULT_ADMIN_PASSWORD=KuwaitRe2024!Secure
+DEFAULT_ADMIN_PASSWORD=[GENERATE_SECURE_PASSWORD]
 ```
 
 **Important:**

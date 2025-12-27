@@ -35,8 +35,7 @@ import { CurrencyLabel } from '@/components/currency/CurrencyLabel';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { ChatBot } from '@/components/chat/ChatBot';
 import { ReinsuranceData } from '@/lib/schema';
-
-interface QuarterlyData {
+import { logger } from '@/lib/utils/logger';interface QuarterlyData {
   quarter: number;
   policyCount: number;
   premium: number;
@@ -137,7 +136,7 @@ export function QuarterlyOverviewContent({ hideChatBot = false }: { hideChatBot?
         const dataResult = await dataResponse.json();
         setData(dataResult.data);
       } catch (error) {
-        console.error('Quarterly Overview - Failed to load data:', error);
+        logger.error('Quarterly Overview - Failed to load data', error);
       }
     };
     loadData();
@@ -185,7 +184,7 @@ export function QuarterlyOverviewContent({ hideChatBot = false }: { hideChatBot?
         setQuarterlyData(quarterlyResponse);
         setLastUpdated(new Date());
       } catch (error) {
-        console.error('Quarterly Overview - Failed to load quarterly data:', error);
+        logger.error('Quarterly Overview - Failed to load quarterly data', error);
         setQuarterlyData(null);
       } finally {
         setIsLoading(false);
@@ -236,7 +235,7 @@ export function QuarterlyOverviewContent({ hideChatBot = false }: { hideChatBot?
         setQuarterlyData(quarterlyResponse);
         setLastUpdated(new Date());
       } catch (error) {
-        console.error('Quarterly Overview - Failed to refresh data:', error);
+        logger.error('Quarterly Overview - Failed to refresh data', error);
       } finally {
         setIsLoading(false);
       }

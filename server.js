@@ -1,16 +1,18 @@
-// Custom server for Railway deployment
-// Ensures Next.js binds to 0.0.0.0 and uses Railway's PORT
+/**
+ * Custom Next.js server for Railway deployment
+ * 
+ * Ensures proper binding to 0.0.0.0 and uses Railway's PORT environment variable
+ */
 
 const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
 
-const dev = false; // Always production mode in Railway
+const isProduction = process.env.NODE_ENV === 'production';
 const hostname = '0.0.0.0';
 const port = parseInt(process.env.PORT || '3000', 10);
 
-// Initialize Next.js app (don't pass hostname/port here - we handle that in our server)
-const app = next({ dev });
+const app = next({ dev: !isProduction });
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
@@ -19,20 +21,26 @@ app.prepare().then(() => {
       const parsedUrl = parse(req.url, true);
       await handle(req, res, parsedUrl);
     } catch (err) {
-      console.error('Error occurred handling', req.url, err);
-      res.statusCode = 500;
-      res.end('internal server error');
+      if (isProduction) {
+        res.statusCode = 500;
+        res.end('Internal server error');
+      } else {
+        console.error('Request handling error:', err);
+        res.statusCode = 500;
+        res.end('Internal server error');
+      }
     }
   }).listen(port, hostname, (err) => {
     if (err) {
-      console.error('Failed to start server:', err);
+      console.error('Server startup failed:', err);
       process.exit(1);
     }
-    console.log(`> Ready on http://${hostname}:${port}`);
-    console.log(`> Environment: ${process.env.NODE_ENV || 'production'}`);
+    if (!isProduction) {
+      console.log(`Server ready on http://${hostname}:${port}`);
+    }
   });
 }).catch((err) => {
-  console.error('Failed to prepare Next.js app:', err);
+  console.error('Next.js initialization failed:', err);
   process.exit(1);
 });
 

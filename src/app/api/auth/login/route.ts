@@ -10,6 +10,7 @@ import {
   clearFailedAttempts 
 } from '@/lib/rate-limit';
 import { safeError, sanitizeError } from '@/lib/security-utils';
+import { logger } from '@/lib/utils/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,17 +18,14 @@ export async function POST(request: NextRequest) {
     try {
       await initDb();
     } catch (dbError) {
-      console.error('Database initialization error:', dbError);
       const errorMessage = dbError instanceof Error ? dbError.message : String(dbError);
-      console.error('Full error details:', {
-        message: errorMessage,
-        stack: dbError instanceof Error ? dbError.stack : undefined,
-        databaseUrl: process.env.DATABASE_URL ? 'SET' : 'MISSING',
+      logger.error('Database initialization failed', dbError, {
+        databaseConfigured: !!process.env.DATABASE_URL,
       });
+      
       return NextResponse.json(
         { 
           error: 'Database connection failed. Please check your database configuration.',
-          details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
         },
         { status: 500 }
       );
@@ -37,7 +35,7 @@ export async function POST(request: NextRequest) {
     try {
       await setupDefaultAdmin();
     } catch (adminError) {
-      console.error('Admin setup error:', adminError);
+      logger.warn('Admin user setup failed', { error: adminError });
       // Don't fail login if admin setup fails, just log it
     }
 
@@ -167,28 +165,27 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error) {
-    safeError('Login error:', error);
-    const errorMessage = sanitizeError(error, false); // Always show detailed errors for debugging
-    console.error('Login API Error:', errorMessage);
+    const errorMessage = sanitizeError(error, process.env.NODE_ENV === 'production');
+    logger.error('Login request failed', error);
     
     // Check for specific error types
     if (error instanceof Error) {
       if (error.message.includes('SESSION_SECRET')) {
         return NextResponse.json(
-          { error: 'Server configuration error: SESSION_SECRET is missing. Please contact administrator.' },
+          { error: 'Server configuration error. Please contact administrator.' },
           { status: 500 }
         );
       }
       if (error.message.includes('DATABASE_URL') || error.message.includes('DB_HOST')) {
         return NextResponse.json(
-          { error: 'Server configuration error: Database connection not configured. Please contact administrator.' },
+          { error: 'Server configuration error. Please contact administrator.' },
           { status: 500 }
         );
       }
     }
     
     return NextResponse.json(
-      { error: `Login failed: ${errorMessage}` },
+      { error: 'Login failed. Please try again.' },
       { status: 500 }
     );
   }

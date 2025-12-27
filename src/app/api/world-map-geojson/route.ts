@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
+import { logger } from '@/lib/utils/logger';
 
 // Proxy endpoint to fetch world map GeoJSON data
 // This avoids CORS issues by fetching on the server side
@@ -48,7 +49,7 @@ export async function GET() {
       { status: 500 }
     );
   } catch (error) {
-    console.error('World Map GeoJSON API Error:', error);
+    logger.error('World Map GeoJSON API Error', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

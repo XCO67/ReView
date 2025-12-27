@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { filterRenewals } from '@/lib/renewals';
 import { getSessionFromRequest } from '@/lib/session';
 import { getAllowedClasses } from '@/lib/role-filter';
+import { logger } from '@/lib/utils/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -115,7 +116,7 @@ export async function GET(request: NextRequest) {
     );
     return NextResponse.json(summary);
   } catch (error) {
-    console.error('Renewals API error:', error);
+    logger.error('Renewals API error', error);
     return NextResponse.json({ error: 'Failed to load renewals' }, { status: 500 });
   }
 }

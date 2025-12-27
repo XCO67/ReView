@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Shield, AlertCircle, ArrowRight, Loader2 } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
+import { logger } from '@/lib/utils/logger';
 
 function LoginPageContent() {
   const router = useRouter();

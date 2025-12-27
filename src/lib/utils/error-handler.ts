@@ -4,6 +4,8 @@
  * Centralized error handling to avoid duplication
  */
 
+import { logger } from './logger';
+
 /**
  * Validates API response structure
  * 
@@ -29,9 +31,7 @@ export function validateApiResponse(response: unknown): response is { data: unkn
 export function handleError(error: unknown, context: string): string {
   const errorMessage = error instanceof Error ? error.message : String(error);
   
-  if (process.env.NODE_ENV === 'development') {
-    console.error(`[${context}]`, error);
-  }
+  logger.error(`Error in ${context}`, error);
   
   // Sanitize error messages in production
   if (process.env.NODE_ENV === 'production') {

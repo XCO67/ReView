@@ -70,11 +70,13 @@ export function sanitizeForLogging(data: unknown): unknown {
 }
 
 /**
- * Safe console.log that sanitizes sensitive data
+ * Safe logging functions that sanitize sensitive data
+ * 
+ * @deprecated Use logger from @/lib/utils/logger instead
+ * These functions are kept for backward compatibility
  */
 export function safeLog(message: string, data?: unknown): void {
   if (process.env.NODE_ENV === 'production') {
-    // In production, don't log sensitive information
     return;
   }
   
@@ -86,9 +88,6 @@ export function safeLog(message: string, data?: unknown): void {
   }
 }
 
-/**
- * Safe console.error that sanitizes sensitive data
- */
 export function safeError(message: string, error?: unknown): void {
   if (error) {
     const sanitized = sanitizeError(error, process.env.NODE_ENV === 'production');

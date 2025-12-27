@@ -4,8 +4,7 @@
  */
 
 import bcrypt from 'bcryptjs';
-
-// Security configuration
+import { logger } from '@/lib/utils/logger';// Security configuration
 export const PASSWORD_CONFIG = {
   // Bcrypt salt rounds (12 is recommended for 2024+)
   // Higher rounds = more secure but slower
@@ -128,7 +127,7 @@ export async function verifyPassword(
     // bcrypt.compare uses constant-time comparison internally
     return await bcrypt.compare(plainPassword, hashedPassword);
   } catch (error) {
-    console.error('Password verification error:', error);
+    logger.error('Password verification error', error);
     return false;
   }
 }

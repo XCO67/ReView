@@ -3,6 +3,7 @@ import { getSession } from '@/lib/session';
 import { createUser, getAllUsers } from '@/lib/db-queries';
 import { initDb } from '@/lib/db';
 import type { CreateUserInput } from '@/lib/db-types';
+import { logger } from '@/lib/utils/logger';
 
 export async function GET() {
   try {
@@ -20,7 +21,7 @@ export async function GET() {
 
     return NextResponse.json(users);
   } catch (error) {
-    console.error('Get users error:', error);
+    logger.error('Failed to fetch users', error);
     return NextResponse.json(
       { error: 'Failed to fetch users' },
       { status: 500 }
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json(user);
   } catch (error) {
-    console.error('Create user error:', error);
+    logger.error('Failed to create user', error);
     
     if (error instanceof Error) {
       // Password validation errors

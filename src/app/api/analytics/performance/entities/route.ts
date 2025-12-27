@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { loadUWData } from '@/lib/uw-data';
 import { getSessionFromRequest } from '@/lib/session';
 import { getAllowedClasses, filterByRole } from '@/lib/role-filter';
+import { logger } from '@/lib/utils/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -76,7 +77,7 @@ export async function GET(request: NextRequest) {
       entities: Array.from(entities).sort(),
     });
   } catch (error) {
-    console.error('Performance entities API error:', error);
+    logger.error('Performance entities API error', error);
     return NextResponse.json({ error: 'Failed to load entities' }, { status: 500 });
   }
 }

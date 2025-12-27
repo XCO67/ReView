@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { isAdmin } from '@/lib/role-filter';
-
-interface UserInfo {
+import { logger } from '@/lib/utils/logger';interface UserInfo {
   name: string;
   email: string;
   roles: string[];
@@ -28,7 +27,7 @@ export function useUserRoles() {
           });
         }
       } catch (error) {
-        console.error("Failed to fetch user info:", error);
+        logger.error('Failed to fetch user info', error);
       } finally {
         setIsLoading(false);
       }

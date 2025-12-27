@@ -17,8 +17,7 @@ import { cn } from '@/lib/utils';
 import { UniversalFilterState } from '@/components/filters/UniversalFilterPanel';
 import { TopFilterPanel } from '@/components/filters/TopFilterPanel';
 import { ReinsuranceData } from '@/lib/schema';
-
-interface PolicyPerformanceRecord {
+import { logger } from '@/lib/utils/logger';interface PolicyPerformanceRecord {
   policyName: string;
   cedantName: string;
   srlNumber?: string;
@@ -85,7 +84,7 @@ export default function PerformancePage() {
           setAllData(result.data || []);
         }
       } catch (error) {
-        console.error('Failed to load data for filters:', error);
+        logger.error('Failed to load data for filters', error);
       }
     };
     loadData();
@@ -133,7 +132,7 @@ export default function PerformancePage() {
           }
         }
       } catch (error) {
-        console.error('Failed to load entities:', error);
+        logger.error('Failed to load entities', error);
       }
     };
 
@@ -176,7 +175,7 @@ export default function PerformancePage() {
           }
         }
       } catch (error) {
-        console.error('Failed to load policies:', error);
+        logger.error('Failed to load policies', error);
       }
     };
 
@@ -252,7 +251,7 @@ export default function PerformancePage() {
           setPerformanceData(null);
         }
       } catch (error) {
-        console.error('Failed to load performance data:', error);
+        logger.error('Failed to load performance data', error);
       } finally {
         setIsLoading(false);
       }
@@ -308,7 +307,7 @@ export default function PerformancePage() {
             }
           }
         } catch (error) {
-          console.error('Failed to load brokers for policy:', error);
+          logger.error('Failed to load brokers for policy', error);
           setBrokersForSelectedPolicy([]);
         }
       };

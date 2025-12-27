@@ -10,8 +10,7 @@ import { Button } from '@/components/ui/button';
 import { RotateCcw, Info, Settings, Eye, EyeOff } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { normalizeCountryName } from '@/lib/country-normalization';
-
-interface WindowWithReload extends Window {
+import { logger } from '@/lib/utils/logger';interface WindowWithReload extends Window {
   __reloadWorldMap?: () => void;
 }
 
@@ -198,7 +197,7 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
       // Set a timeout to prevent infinite loading (30 seconds)
       timeoutId = setTimeout(() => {
         if (isMounted && loadingRef.current) {
-          console.error('World map loading timeout');
+          logger.error('World map loading timeout');
           setError('Loading timeout - please refresh the page');
           setIsLoading(false);
           loadingRef.current = false;
@@ -590,7 +589,7 @@ export default function WorldMap({ data, metricType = 'premium', onCountryHover,
           }
           return;
         }
-        console.error('Error loading world map:', error);
+        logger.error('Error loading world map', error);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         setError(`Failed to load world map: ${errorMessage}. Please check your internet connection and try refreshing the page.`);
         setIsLoading(false);

@@ -9,6 +9,7 @@
 
 import { getDb } from './connection';
 import type { ReinsuranceData } from '../validation/schema';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * Load all policy data from database
@@ -142,7 +143,7 @@ export async function loadPoliciesFromDb(options?: { forceReload?: boolean }): P
 
     return mappedData;
   } catch (error) {
-    console.error('Database query error in loadPoliciesFromDb:', error);
+    logger.error('Database query error in loadPoliciesFromDb', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to load policies from database: ${errorMessage}`);
   }

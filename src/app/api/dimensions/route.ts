@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { loadUWData } from '@/lib/uw-data';
 import { getSessionFromRequest } from '@/lib/session';
 import { filterByRole } from '@/lib/role-filter';
+import { logger } from '@/lib/utils/logger';
 
 export async function GET(req: NextRequest) {
   try {
@@ -67,7 +68,7 @@ export async function GET(req: NextRequest) {
       subClasses: Array.from(dimensions.subClasses).sort(),
     });
   } catch (error) {
-    console.error('Dimensions API error:', error);
+    logger.error('Dimensions API error', error);
     return NextResponse.json(
       {
         error: 'Failed to fetch dimensions',

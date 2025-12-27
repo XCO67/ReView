@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/database/connection';
 
 /**
- * Health check endpoint for Railway
- * Returns status of the application and database connection
+ * Health check endpoint
+ * 
+ * Returns application status and database connection state.
+ * Used for monitoring and deployment verification.
  */
 export async function GET() {
   const health: {
@@ -51,7 +53,7 @@ export async function GET() {
     } else if (errorMsg.includes('ENOTFOUND') || errorMsg.includes('getaddrinfo')) {
       health.checks.databaseError = 'DNS resolution failed - check DATABASE_URL hostname';
     } else if (errorMsg.includes('SSL') || errorMsg.includes('certificate')) {
-      health.checks.databaseError = 'SSL connection issue - Supabase requires SSL';
+      health.checks.databaseError = 'SSL connection issue - check database SSL configuration';
     }
   }
 

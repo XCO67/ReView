@@ -3,6 +3,7 @@ import { getSession } from '@/lib/session';
 import { updateUser, deleteUser, getUserWithRoles } from '@/lib/db-queries';
 import { initDb } from '@/lib/db';
 import type { UpdateUserInput } from '@/lib/db-types';
+import { logger } from '@/lib/utils/logger';
 
 export async function PUT(
   request: NextRequest,
@@ -69,7 +70,7 @@ export async function PUT(
     const user = await updateUser(userId, body);
     return NextResponse.json(user);
   } catch (error) {
-    console.error('Update user error:', error);
+    logger.error('Failed to update user', error);
     
     if (error instanceof Error) {
       // Password validation errors
@@ -141,7 +142,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Delete user error:', error);
+    logger.error('Failed to delete user', error);
     return NextResponse.json(
       { error: 'Failed to delete user' },
       { status: 500 }

@@ -42,10 +42,11 @@ npm install
    ```
 3. Update `.env` with your local database credentials
 
-#### Option B: Cloud Database (Supabase, AWS RDS, etc.)
+#### Option B: Railway PostgreSQL
 
-1. Create a PostgreSQL database on your cloud provider
-2. Update `.env` with your cloud database connection string
+1. Create a PostgreSQL database on Railway
+2. Get the connection string from Railway → PostgreSQL service → Variables
+3. Update `.env` with your Railway database connection string
 
 ### 4. Generate Session Secret
 

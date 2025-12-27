@@ -27,9 +27,14 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+.env.production
+.env.development
 
-# vercel
-.vercel
+# sensitive files
+*credentials*.txt
+*password*.txt
+*secret*.txt
+Railway.txt
 
 # typescript
 *.tsbuildinfo
