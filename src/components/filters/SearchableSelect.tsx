@@ -170,7 +170,7 @@ export function SearchableSelect({
               
               {/* Search Results */}
               {searchQuery && (
-                <div className="border border-border rounded-md bg-popover shadow-lg max-h-60 overflow-auto">
+                <div className="border border-border rounded-md bg-popover shadow-lg max-h-60 overflow-auto z-[200] relative">
                   {filteredOptions.length > 0 ? (
                     <div className="p-1">
                       {filteredOptions.map((option) => (

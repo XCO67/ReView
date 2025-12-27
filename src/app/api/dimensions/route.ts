@@ -27,7 +27,8 @@ export async function GET(req: NextRequest) {
     
     const dimensions = roleFilteredData.reduce(
       (acc, record) => {
-        if (record.uy) acc.years.add(record.uy);
+        const uy = record.uy || (record.inceptionYear ? String(record.inceptionYear) : null);
+        if (uy) acc.years.add(uy);
         if (record.countryName) acc.countries.add(record.countryName);
         if (record.region) acc.regions.add(record.region);
         if (record.hub) acc.hubs.add(record.hub);

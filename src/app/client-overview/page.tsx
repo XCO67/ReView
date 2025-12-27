@@ -627,12 +627,14 @@ export default function ClientOverviewPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Top Filter Panel */}
-      <TopFilterPanel
-        data={rawData}
-        filters={universalFilters}
-        onFiltersChange={setUniversalFilters}
-        onClearFilters={clearFilters}
-      />
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border/50 shadow-sm">
+        <TopFilterPanel
+          data={rawData}
+          filters={universalFilters}
+          onFiltersChange={setUniversalFilters}
+          onClearFilters={clearFilters}
+        />
+      </div>
 
       {/* Fixed Header */}
       <div className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b">

@@ -51,7 +51,7 @@ export function SideFilterPanel({
 
   // Extract unique filter options from data
   const filterOptions = useMemo(() => {
-    const years = [...new Set(data.map(d => d.uy).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    const years = [...new Set(data.map(d => d.uy || (d.inceptionYear ? String(d.inceptionYear) : '')).filter(Boolean))].sort((a, b) => a.localeCompare(b));
     const extTypes = [...new Set(data.map(d => d.extType).filter(Boolean))].sort();
     const countries = [...new Set(data.map(d => d.countryName).filter(Boolean))].sort();
     const brokers = [...new Set(data.map(d => d.broker).filter(Boolean))].sort();

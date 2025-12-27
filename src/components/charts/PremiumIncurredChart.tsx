@@ -27,7 +27,8 @@ export function PremiumIncurredLineChart({ data, className }: PremiumIncurredLin
     }>();
     
     data.forEach(record => {
-      const uy = record.uy;
+      // Get UY - use provided uy or generate from inception_year
+      const uy = record.uy || (record.inceptionYear ? String(record.inceptionYear) : 'Unknown');
       if (!uyMap.has(uy)) {
         uyMap.set(uy, { uy, premium: 0, incurred: 0, lossRatio: 0 });
       }

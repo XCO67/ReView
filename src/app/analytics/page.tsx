@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,8 @@ import { ChatBot } from '@/components/chat/ChatBot';
 import { ComparisonBarChart } from '@/components/charts/ComparisonBarChart';
 import { UniversalFilterState } from '@/components/filters/UniversalFilterPanel';
 import { TopFilterPanel } from '@/components/filters/TopFilterPanel';
+import { useReinsuranceData } from '@/hooks/useReinsuranceData';
+import { DEFAULT_FILTER_STATE } from '@/lib/constants/filters';
 
 interface ComparisonEntity {
   id: string;
@@ -31,79 +33,24 @@ interface ComparisonEntity {
 export default function AnalyticsPage() {
   const { isAdmin } = useUserRoles();
   const { formatCurrency, formatCurrencyNumeric } = useFormatCurrency();
-  const [data, setData] = useState<ReinsuranceData[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
 
   // Global Filters using UniversalFilterState
-  const [filters, setFilters] = useState<UniversalFilterState>({
-    office: null,
-    extType: null,
-    policyNature: null,
-    class: null,
-    subClass: null,
-    hub: null,
-    region: null,
-    country: null,
-    year: null,
-    month: null,
-    quarter: null,
-    broker: null,
-    cedant: null,
-    policyName: null,
-  });
+  const [filters, setFilters] = useState<UniversalFilterState>(DEFAULT_FILTER_STATE);
 
   // Comparison entities (max 8)
   const [comparisonEntities, setComparisonEntities] = useState<ComparisonEntity[]>([]);
   const [groupBy, setGroupBy] = useState<string>('uy');
   const [entitySearchTerm, setEntitySearchTerm] = useState('');
 
-  // Load data
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        const dataResponse = await fetch(`/api/data?limit=100000`);
-        
-        if (!dataResponse.ok) {
-          throw new Error(`API request failed: ${dataResponse.status} ${dataResponse.statusText}`);
-        }
-        
-        const dataResult = await dataResponse.json();
-        
-        if (!dataResult || !dataResult.data || !Array.isArray(dataResult.data)) {
-          console.error('Invalid data structure received:', dataResult);
-          throw new Error('Invalid data structure received from API');
-        }
-        
-        setData(dataResult.data);
-      } catch (error) {
-        console.error('Failed to load analytics data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadData();
-  }, []);
+  // Load data using shared hook
+  const { data, isLoading } = useReinsuranceData({
+    limit: 100000,
+    autoFetch: true,
+  });
 
   // Clear filters function
   const clearFilters = () => {
-    setFilters({
-      office: null,
-      extType: null,
-      policyNature: null,
-      class: null,
-      subClass: null,
-      hub: null,
-      region: null,
-      country: null,
-      year: null,
-      month: null,
-      quarter: null,
-      broker: null,
-      cedant: null,
-      policyName: null,
-    });
+    setFilters(DEFAULT_FILTER_STATE);
   };
 
   // Apply global filters to data
@@ -349,15 +296,16 @@ export default function AnalyticsPage() {
     <TooltipProvider>
       <div className="min-h-screen bg-background">
         {/* Top Filter Panel with Comparison Entities */}
-        <TopFilterPanel
-          data={data}
-          filters={filters}
-          onFiltersChange={setFilters}
-          onClearFilters={clearFilters}
-        >
-          {/* Select Entities to Compare Section */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Select Entities to Compare</h3>
+        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border/50 shadow-sm">
+          <TopFilterPanel
+            data={data}
+            filters={filters}
+            onFiltersChange={setFilters}
+            onClearFilters={clearFilters}
+          >
+            {/* Select Entities to Compare Section */}
+            <div className="space-y-4 w-full">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Select Entities to Compare</h3>
             <div className="space-y-4">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 flex-1">
@@ -465,9 +413,10 @@ export default function AnalyticsPage() {
               )}
             </div>
           </div>
-        </TopFilterPanel>
+          </TopFilterPanel>
+        </div>
 
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-8 pt-6">
           {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}

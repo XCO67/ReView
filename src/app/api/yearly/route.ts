@@ -5,6 +5,8 @@ import { ReinsuranceData } from '@/lib/schema';
 import { loadUWData } from '@/lib/uw-data';
 import { getSessionFromRequest } from '@/lib/session';
 import { filterByRole } from '@/lib/role-filter';
+import { applyFilters, extractFilterParams } from '@/lib/utils/data-filters';
+import { extractYear } from '@/lib/utils/date-helpers';
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,65 +14,40 @@ export async function GET(req: NextRequest) {
     const session = await getSessionFromRequest(req);
     
     const url = new URL(req.url);
-    const year = url.searchParams.get("year");
-    const loc = url.searchParams.get("loc");
-    const extType = url.searchParams.get("extType");
-    const classFilter = url.searchParams.get("class");
-    const subClassFilter = url.searchParams.get("subClass");
 
     const allData = await loadUWData();
     
     // Apply role-based filtering
-    let roleFilteredData = filterByRole(allData, session?.roles);
+    const roleFilteredData = filterByRole(allData, session?.roles);
 
-    // Apply additional filters (loc, extType, class)
-    if (loc && loc !== 'all') {
-      roleFilteredData = roleFilteredData.filter(record => record.loc === loc);
-    }
-    if (extType && extType !== 'all') {
-      roleFilteredData = roleFilteredData.filter(record => record.extType === extType);
-    }
-    if (classFilter && classFilter !== 'all') {
-      roleFilteredData = roleFilteredData.filter(record => record.className === classFilter);
-    }
-    if (subClassFilter && subClassFilter !== 'all') {
-      roleFilteredData = roleFilteredData.filter(record => record.subClass === subClassFilter);
-    }
-
+    // Apply filters using shared utility
+    const filterParams = extractFilterParams(url.searchParams);
+    const filteredData = applyFilters(roleFilteredData, filterParams);
 
     // Group data by year (UY - Underwriting Year)
     const yearlyGroups: Record<number, ReinsuranceData[]> = {};
 
-    roleFilteredData.forEach(record => {
-      // Get year from UY (Underwriting Year)
-      let recordYear: number | undefined;
+    filteredData.forEach(record => {
+      // Get year using shared utility
+      const recordYear = extractYear(record);
       
-      if (record.uy) {
-        const uyYear = parseInt(record.uy);
-        if (!isNaN(uyYear) && uyYear >= 1900 && uyYear <= 2100) {
-          recordYear = uyYear;
-        }
-      }
-      
-      // Fallback to inceptionYear if UY is not available
-      if (!recordYear && record.inceptionYear) {
-        recordYear = record.inceptionYear;
+      // Skip records without valid year
+      if (!recordYear) {
+        return;
       }
       
       // Filter by selected year if specified
-      if (year && year !== 'all') {
-        const yearNum = parseInt(year, 10);
+      if (filterParams.year && filterParams.year !== 'all') {
+        const yearNum = parseInt(filterParams.year, 10);
         if (recordYear !== yearNum) {
           return; // Skip this record if it doesn't match the selected year
         }
       }
       
-      if (recordYear) {
-        if (!yearlyGroups[recordYear]) {
-          yearlyGroups[recordYear] = [];
-        }
-        yearlyGroups[recordYear].push(record);
+      if (!yearlyGroups[recordYear]) {
+        yearlyGroups[recordYear] = [];
       }
+      yearlyGroups[recordYear].push(record);
     });
 
     // Get all years and sort them

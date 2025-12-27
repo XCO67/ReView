@@ -119,7 +119,7 @@ export function MultiSelect({
         </button>
 
         {isOpen && (
-          <div className="absolute z-[100] w-full mt-1 bg-popover border border-border rounded-md shadow-lg">
+          <div className="absolute z-[200] w-full mt-1 bg-popover border border-border rounded-md shadow-lg">
             {/* Search Input */}
             <div className="p-2 border-b">
               <div className="relative">

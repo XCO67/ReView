@@ -413,11 +413,12 @@ export default function PerformancePage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Top Filter Panel with Entity Selection */}
-      <TopFilterPanel
-        data={allData}
-        filters={filters}
-        onFiltersChange={setFilters}
-        onClearFilters={() => {
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border/50 shadow-sm">
+        <TopFilterPanel
+          data={allData}
+          filters={filters}
+          onFiltersChange={setFilters}
+          onClearFilters={() => {
           setFilters({
             office: null,
             extType: null,
@@ -787,8 +788,9 @@ export default function PerformancePage() {
           </div>
         </div>
       </TopFilterPanel>
+      </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 pt-6">
         <div className="space-y-6">
           {/* Header */}
           <div>

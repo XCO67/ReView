@@ -2,68 +2,26 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { ReinsuranceData } from '@/lib/schema';
-import { parseDate } from '@/lib/csvParser';
 import { loadUWData } from '@/lib/uw-data';
 import { getSessionFromRequest } from '@/lib/session';
 import { filterByRole } from '@/lib/role-filter';
+import { extractYear, extractQuarter } from '@/lib/utils/date-helpers';
+import { applyFilters, extractFilterParams } from '@/lib/utils/data-filters';
 
 // Time normalization according to spec
 // Uses UY for year and inceptionQuarter for quarter
 function normalizeTimeData(record: ReinsuranceData): { year: number; quarter: string } | null {
-  // 1. Get year from UY (Underwriting Year)
-  let year: number | undefined;
+  // Get year using shared utility
+  const year = extractYear(record);
   
-  if (record.uy) {
-    const uyYear = parseInt(record.uy);
-    if (!isNaN(uyYear) && uyYear >= 1900 && uyYear <= 2100) {
-      year = uyYear;
-    }
-  }
-  
-  // Fallback to inceptionYear if UY is not available
-  if (!year && record.inceptionYear) {
-    year = record.inceptionYear;
-  }
-  
-  // Ensure year is valid
   if (!year) {
     return null;
   }
 
-  // 2. Get quarter from inceptionQuarter (number: 1, 2, 3, or 4)
-  let quarter: string | null = null;
+  // Get quarter using shared utility
+  const quarter = extractQuarter(record);
   
-  if (record.inceptionQuarter !== undefined && record.inceptionQuarter !== null) {
-    const qNum = typeof record.inceptionQuarter === 'number' 
-      ? record.inceptionQuarter 
-      : parseInt(String(record.inceptionQuarter));
-    
-    if (qNum >= 1 && qNum <= 4) {
-      quarter = `Q${qNum}`;
-    }
-  }
-  
-  // If quarter is missing, derive from inceptionMonth (number: 1-12)
-  if (!quarter && record.inceptionMonth !== undefined && record.inceptionMonth !== null) {
-    const month = typeof record.inceptionMonth === 'number'
-      ? record.inceptionMonth
-      : parseInt(String(record.inceptionMonth));
-    
-    if (month >= 1 && month <= 12) {
-      if (month >= 1 && month <= 3) {
-        quarter = 'Q1';
-      } else if (month >= 4 && month <= 6) {
-        quarter = 'Q2';
-      } else if (month >= 7 && month <= 9) {
-        quarter = 'Q3';
-      } else if (month >= 10 && month <= 12) {
-        quarter = 'Q4';
-      }
-    }
-  }
-  
-  // Validate quarter is Q1-Q4
-  if (!quarter || !/^Q[1-4]$/.test(quarter)) {
+  if (!quarter) {
     return null;
   }
   
@@ -78,32 +36,18 @@ export async function GET(req: NextRequest) {
     
     const url = new URL(req.url);
     const year = url.searchParams.get("year");
-    const loc = url.searchParams.get("loc");
-    const extType = url.searchParams.get("extType");
-    const classFilter = url.searchParams.get("class");
-    const subClassFilter = url.searchParams.get("subClass");
 
     const allData = await loadUWData();
     
     // Apply role-based filtering
-    let roleFilteredData = filterByRole(allData, session?.roles);
+    const roleFilteredData = filterByRole(allData, session?.roles);
 
-    // Apply additional filters (loc, extType, class)
-    if (loc && loc !== 'all') {
-      roleFilteredData = roleFilteredData.filter(record => record.loc === loc);
-    }
-    if (extType && extType !== 'all') {
-      roleFilteredData = roleFilteredData.filter(record => record.extType === extType);
-    }
-    if (classFilter && classFilter !== 'all') {
-      roleFilteredData = roleFilteredData.filter(record => record.className === classFilter);
-    }
-    if (subClassFilter && subClassFilter !== 'all') {
-      roleFilteredData = roleFilteredData.filter(record => record.subClass === subClassFilter);
-    }
+    // Apply filters using shared utility
+    const filterParams = extractFilterParams(url.searchParams);
+    const filteredData = applyFilters(roleFilteredData, filterParams);
 
     // Apply time normalization
-    const normalizedData = roleFilteredData
+    const normalizedData = filteredData
       .map(record => {
         const timeData = normalizeTimeData(record);
         if (!timeData) return null;

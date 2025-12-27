@@ -13,15 +13,15 @@ interface RenewalTableProps {
 export function RenewalTable({ summary }: RenewalTableProps) {
   const { formatCurrencyNumeric } = useFormatCurrency();
   return (
-    <Card className="bg-white/5 border-white/10 text-white">
+    <Card className="bg-white/5 border-white/10 text-white w-full">
       <CardHeader className="pb-3">
         <CardTitle className="text-base tracking-[0.2em] uppercase text-white/70">
           Renewal Records
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-0">
-        <div className="border rounded-lg">
-          <Table className="w-full table-fixed">
+      <CardContent className="pt-0 w-full overflow-x-auto">
+        <div className="border rounded-lg w-full min-w-full">
+          <Table className="w-full table-fixed min-w-full">
             <TableHeader className="bg-muted/50">
               <TableRow>
                 <TableHead className="w-[10%]">Renewal Date</TableHead>

@@ -26,11 +26,11 @@ export function RenewalSummaryGrid({ summary }: RenewalSummaryGridProps) {
   };
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
       {cards.map((card) => (
         <div
           key={card.key}
-          className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] p-5 shadow-lg shadow-black/20"
+          className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] p-5 shadow-lg shadow-black/20 w-full"
         >
           <p className="text-sm font-medium text-white/80">{card.label}</p>
           <div className="mt-3 space-y-2">

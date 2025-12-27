@@ -128,32 +128,41 @@ export function RenewalFiltersClient({
   return (
     <div className="space-y-6">
       {/* Filters at the Top - Sticky */}
-      <RenewalFilters
-        initialYear={initialYear}
-        initialQuarter={initialQuarter}
-        initialStatus={initialStatus}
-        initialMonthName={initialMonthName}
-        initialCountry={initialCountry}
-        initialBusinessType={initialBusinessType}
-        initialClassName={initialClassName}
-        initialCountrySearch={initialCountrySearch}
-        initialSrlSearch={initialSrlSearch}
-        initialLoc={initialLoc}
-        filterOptions={filterOptions}
-        onChange={fetchSummary}
-      />
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/50 shadow-sm">
+        <RenewalFilters
+          initialYear={initialYear}
+          initialQuarter={initialQuarter}
+          initialStatus={initialStatus}
+          initialMonthName={initialMonthName}
+          initialCountry={initialCountry}
+          initialBusinessType={initialBusinessType}
+          initialClassName={initialClassName}
+          initialCountrySearch={initialCountrySearch}
+          initialSrlSearch={initialSrlSearch}
+          initialLoc={initialLoc}
+          filterOptions={filterOptions}
+          onChange={fetchSummary}
+        />
+      </div>
       
-      {/* Summary Grid */}
-      <RenewalSummaryGrid summary={summary} />
-      
-      {/* Table */}
-      {loading ? (
-        <div className="flex justify-center py-20 text-white/60">
-          <Loader2 className="h-6 w-6 animate-spin" />
+      {/* Main Content with padding to prevent overlap */}
+      <div className="pt-6 space-y-6">
+        {/* Summary Grid */}
+        <div className="w-full">
+          <RenewalSummaryGrid summary={summary} />
         </div>
-      ) : (
-        <RenewalTable summary={summary} />
-      )}
+        
+        {/* Table */}
+        <div className="w-full">
+          {loading ? (
+            <div className="flex justify-center py-20 text-white/60">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : (
+            <RenewalTable summary={summary} />
+          )}
+        </div>
+      </div>
     </div>
   );
 }

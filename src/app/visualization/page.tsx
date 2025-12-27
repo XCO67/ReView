@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Loader2, X } from 'lucide-react';
 import { ReinsuranceData } from '@/lib/schema';
@@ -16,6 +15,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { UniversalFilterState } from '@/components/filters/UniversalFilterPanel';
 import { TopFilterPanel } from '@/components/filters/TopFilterPanel';
+import { useReinsuranceData } from '@/hooks/useReinsuranceData';
+import { DEFAULT_FILTER_STATE } from '@/lib/constants/filters';
+import { extractYear } from '@/lib/utils/date-helpers';
 
 type ChartType = 'quadrant' | 'premiumIncurred' | 'lossRatio' | 'premiumByExtType';
 
@@ -33,9 +35,6 @@ const AVAILABLE_CHARTS: ChartConfig[] = [
 ];
 
 export default function VisualizationPage() {
-  const [data, setData] = useState<ReinsuranceData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const { currency, convertValue } = useCurrency();
 
   // Chart visibility state - all charts visible by default
@@ -44,128 +43,73 @@ export default function VisualizationPage() {
   );
 
   // Global Filters using UniversalFilterState
-  const [filters, setFilters] = useState<UniversalFilterState>({
-    office: null,
-    extType: null,
-    policyNature: null,
-    class: null,
-    subClass: null,
-    hub: null,
-    region: null,
-    country: null,
-    year: null,
-    month: null,
-    quarter: null,
-    broker: null,
-    cedant: null,
-    policyName: null,
-  });
+  const [filters, setFilters] = useState<UniversalFilterState>(DEFAULT_FILTER_STATE);
 
   // Clear filters function
   const clearFilters = () => {
-    setFilters({
-      office: null,
-      extType: null,
-      policyNature: null,
-      class: null,
-      subClass: null,
-      hub: null,
-      region: null,
-      country: null,
-      year: null,
-      month: null,
-      quarter: null,
-      broker: null,
-      cedant: null,
-      policyName: null,
-    });
+    setFilters(DEFAULT_FILTER_STATE);
   };
 
+  // Load data using shared hook - increased limit to get all years
+  const { data, isLoading, error: dataError } = useReinsuranceData({
+    limit: 100000,
+    autoFetch: true,
+  });
 
-  // Load data
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await fetch('/api/data?limit=50000', {
-          credentials: 'include',
-        });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        setData(result.data || []);
-      } catch (err) {
-        console.error('Failed to fetch data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load data');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const error = dataError;
 
-    fetchData();
-  }, []);
-
-  // Global filtered data (applied to all charts)
+  // Global filtered data (applied to all charts) - optimized with early returns
   const filteredData = useMemo(() => {
-    let filtered = data;
+    // Early return if no filters applied
+    const hasFilters = Object.values(filters).some(value => {
+      if (value === null || value === '') return false;
+      if (Array.isArray(value)) return value.length > 0;
+      return true;
+    });
 
-    if (filters.office) {
-      filtered = filtered.filter(record => record.office === filters.office);
+    if (!hasFilters) {
+      return data;
     }
 
-    if (filters.extType && filters.extType.length > 0) {
-      filtered = filtered.filter(record => record.extType && filters.extType!.includes(record.extType));
-    }
+    // Apply filters efficiently with early returns
+    return data.filter(record => {
+      if (filters.office && record.office !== filters.office) return false;
+      
+      if (filters.extType && filters.extType.length > 0) {
+        if (!record.extType || !filters.extType.includes(record.extType)) return false;
+      }
 
-    if (filters.policyNature && filters.policyNature.length > 0) {
-      filtered = filtered.filter(record => record.arrangement && filters.policyNature!.includes(record.arrangement));
-    }
+      if (filters.policyNature && filters.policyNature.length > 0) {
+        if (!record.arrangement || !filters.policyNature.includes(record.arrangement)) return false;
+      }
 
-    if (filters.class && filters.class.length > 0) {
-      filtered = filtered.filter(record => record.className && filters.class!.includes(record.className));
-    }
+      if (filters.class && filters.class.length > 0) {
+        if (!record.className || !filters.class.includes(record.className)) return false;
+      }
 
-    if (filters.subClass && filters.subClass.length > 0) {
-      filtered = filtered.filter(record => record.subClass && filters.subClass!.includes(record.subClass));
-    }
+      if (filters.subClass && filters.subClass.length > 0) {
+        if (!record.subClass || !filters.subClass.includes(record.subClass)) return false;
+      }
 
-    if (filters.hub) {
-      filtered = filtered.filter(record => record.hub === filters.hub);
-    }
+      if (filters.hub && record.hub !== filters.hub) return false;
+      if (filters.region && record.region !== filters.region) return false;
 
-    if (filters.region) {
-      filtered = filtered.filter(record => record.region === filters.region);
-    }
+      if (filters.country && filters.country.length > 0) {
+        if (!record.countryName || !filters.country.includes(record.countryName)) return false;
+      }
 
-    if (filters.country && filters.country.length > 0) {
-      filtered = filtered.filter(record => record.countryName && filters.country!.includes(record.countryName));
-    }
+      if (filters.year) {
+        const yearNum = parseInt(filters.year, 10);
+        const recordYear = extractYear(record);
+        if (recordYear !== yearNum) return false;
+      }
 
-    if (filters.year) {
-      const yearNum = parseInt(filters.year, 10);
-      filtered = filtered.filter(record => {
-        const recordYear = record.inceptionYear || (record.uy ? parseInt(String(record.uy), 10) : null);
-        return recordYear === yearNum;
-      });
-    }
+      if (filters.broker && record.broker !== filters.broker) return false;
+      if (filters.cedant && record.cedant !== filters.cedant) return false;
+      if (filters.policyName && record.orgInsuredTrtyName !== filters.policyName) return false;
 
-    if (filters.broker) {
-      filtered = filtered.filter(record => record.broker === filters.broker);
-    }
-
-    if (filters.cedant) {
-      filtered = filtered.filter(record => record.cedant === filters.cedant);
-    }
-
-    if (filters.policyName) {
-      filtered = filtered.filter(record => record.orgInsuredTrtyName === filters.policyName);
-    }
-
-    return filtered;
+      return true;
+    });
   }, [data, filters]);
 
   // Toggle chart visibility
@@ -225,14 +169,16 @@ export default function VisualizationPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Top Filter Panel */}
-      <TopFilterPanel
-        data={data}
-        filters={filters}
-        onFiltersChange={setFilters}
-        onClearFilters={clearFilters}
-      />
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border/50 shadow-sm">
+        <TopFilterPanel
+          data={data}
+          filters={filters}
+          onFiltersChange={setFilters}
+          onClearFilters={clearFilters}
+        />
+      </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 pt-6">
         <div className="space-y-6">
           {/* Header */}
           <div>

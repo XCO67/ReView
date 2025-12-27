@@ -18,11 +18,12 @@ import type { ReinsuranceData } from '../validation/schema';
  * @returns {Promise<ReinsuranceData[]>} Array of policy records
  */
 export async function loadPoliciesFromDb(options?: { forceReload?: boolean }): Promise<ReinsuranceData[]> {
-  const db = getDb();
-  
-  const result = await db.query<{
+  try {
+    const db = getDb();
+    
+    const result = await db.query<{
     id: number;
-    uy: string;
+    uy: string | null;
     ext_type: string | null;
     srl: string | null;
     loc: string | null;
@@ -65,7 +66,9 @@ export async function loadPoliciesFromDb(options?: { forceReload?: boolean }): P
     expiry_date: Date | null;
   }>(`
     SELECT 
-      id, uy, ext_type, srl, loc, class_name, sub_class, ced_territory,
+      id, 
+      COALESCE(uy, inception_year::text) as uy,
+      ext_type, srl, loc, class_name, sub_class, ced_territory,
       broker, cedant, org_insured_trty_name,
       country_name, region, hub, office,
       grs_prem_kd, acq_cost_kd, paid_claims_kd, os_claim_kd, inc_claim_kd,
@@ -79,63 +82,70 @@ export async function loadPoliciesFromDb(options?: { forceReload?: boolean }): P
     ORDER BY inception_year DESC, id ASC
   `);
 
-  return result.rows.map(row => ({
-    // Display fields
-    uy: row.uy,
-    extType: row.ext_type || 'Unknown',
-    srl: row.srl || undefined,
-    loc: row.loc || undefined,
-    className: row.class_name || undefined,
-    subClass: row.sub_class || undefined,
-    cedTerritory: row.ced_territory || undefined,
-    broker: row.broker,
-    cedant: row.cedant,
-    orgInsuredTrtyName: row.org_insured_trty_name,
-    
-    // Calculation fields
-    countryName: row.country_name,
-    region: row.region,
-    hub: row.hub,
-    office: row.office || undefined,
-    grsPremKD: Number(row.grs_prem_kd) || 0,
-    acqCostKD: Number(row.acq_cost_kd) || 0,
-    paidClaimsKD: Number(row.paid_claims_kd) || 0,
-    osClaimKD: Number(row.os_claim_kd) || 0,
-    incClaimKD: Number(row.inc_claim_kd) || 0,
-    maxLiabilityKD: Number(row.max_liability_kd) || 0,
-    signSharePct: Number(row.sign_share_pct) || 0,
-    writtenSharePct: row.written_share_pct ? Number(row.written_share_pct) : undefined,
-    
-    // Date fields
-    inceptionDay: row.inception_day || undefined,
-    inceptionMonth: row.inception_month || undefined,
-    inceptionQuarter: row.inception_quarter || undefined,
-    inceptionYear: row.inception_year || undefined,
-    expiryDay: row.expiry_day || undefined,
-    expiryMonth: row.expiry_month || undefined,
-    expiryQuarter: row.expiry_quarter || undefined,
-    expiryYear: row.expiry_year || undefined,
-    renewalDate: row.renewal_date || undefined,
-    renewalDay: row.renewal_day || undefined,
-    renewalMonth: row.renewal_month || undefined,
-    renewalQuarter: row.renewal_quarter || undefined,
-    renewalYear: row.renewal_year || undefined,
-    
-    // Additional fields
-    source: row.source || undefined,
-    policyStatus: row.policy_status || undefined,
-    channel: row.channel || undefined,
-    arrangement: row.arrangement || undefined,
-    
-    // Legacy fields for backward compatibility
-    comDate: row.com_date ? row.com_date.toISOString().split('T')[0] : undefined,
-    expiryDate: row.expiry_date ? row.expiry_date.toISOString().split('T')[0] : undefined,
-    maxLiabilityFC: Number(row.max_liability_kd) || 0,
-    grossUWPrem: Number(row.grs_prem_kd) || 0,
-    grossActualAcq: Number(row.acq_cost_kd) || 0,
-    grossPaidClaims: Number(row.paid_claims_kd) || 0,
-    grossOsLoss: Number(row.os_claim_kd) || 0,
-  }));
+    const mappedData = result.rows.map(row => ({
+      // Display fields
+      uy: row.uy || (row.inception_year ? String(row.inception_year) : ''),
+      extType: row.ext_type || 'Unknown',
+      srl: row.srl || undefined,
+      loc: row.loc || undefined,
+      className: row.class_name || undefined,
+      subClass: row.sub_class || undefined,
+      cedTerritory: row.ced_territory || undefined,
+      broker: row.broker,
+      cedant: row.cedant,
+      orgInsuredTrtyName: row.org_insured_trty_name,
+      
+      // Calculation fields
+      countryName: row.country_name,
+      region: row.region,
+      hub: row.hub,
+      office: row.office || undefined,
+      grsPremKD: Number(row.grs_prem_kd) || 0,
+      acqCostKD: Number(row.acq_cost_kd) || 0,
+      paidClaimsKD: Number(row.paid_claims_kd) || 0,
+      osClaimKD: Number(row.os_claim_kd) || 0,
+      incClaimKD: Number(row.inc_claim_kd) || 0,
+      maxLiabilityKD: Number(row.max_liability_kd) || 0,
+      signSharePct: Number(row.sign_share_pct) || 0,
+      writtenSharePct: row.written_share_pct ? Number(row.written_share_pct) : undefined,
+      
+      // Date fields
+      inceptionDay: row.inception_day || undefined,
+      inceptionMonth: row.inception_month || undefined,
+      inceptionQuarter: row.inception_quarter || undefined,
+      inceptionYear: row.inception_year || undefined,
+      expiryDay: row.expiry_day || undefined,
+      expiryMonth: row.expiry_month || undefined,
+      expiryQuarter: row.expiry_quarter || undefined,
+      expiryYear: row.expiry_year || undefined,
+      renewalDate: row.renewal_date || undefined,
+      renewalDay: row.renewal_day || undefined,
+      renewalMonth: row.renewal_month || undefined,
+      renewalQuarter: row.renewal_quarter || undefined,
+      renewalYear: row.renewal_year || undefined,
+      
+      // Additional fields
+      source: row.source || undefined,
+      policyStatus: row.policy_status || undefined,
+      channel: row.channel || undefined,
+      arrangement: row.arrangement || undefined,
+      
+      // Legacy fields for backward compatibility
+      comDate: row.com_date ? row.com_date.toISOString().split('T')[0] : undefined,
+      expiryDate: row.expiry_date ? row.expiry_date.toISOString().split('T')[0] : undefined,
+      maxLiabilityFC: Number(row.max_liability_kd) || 0,
+      grossUWPrem: Number(row.grs_prem_kd) || 0,
+      grossActualAcq: Number(row.acq_cost_kd) || 0,
+      grossPaidClaims: Number(row.paid_claims_kd) || 0,
+      grossOsLoss: Number(row.os_claim_kd) || 0,
+    }));
+
+    return mappedData;
+  } catch (error) {
+    console.error('Database query error in loadPoliciesFromDb:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to load policies from database: ${errorMessage}`);
+  }
 }
 
 /**
@@ -147,6 +157,9 @@ export async function loadPoliciesFromDb(options?: { forceReload?: boolean }): P
 export async function insertPolicy(data: ReinsuranceData): Promise<number> {
   const db = getDb();
   
+  // Auto-generate uy from inception_year if not provided
+  const uyValue = data.uy || (data.inceptionYear ? String(data.inceptionYear) : null);
+
   const result = await db.query<{ id: number }>(`
     INSERT INTO policies (
       uy, ext_type, srl, loc, class_name, sub_class, ced_territory,
@@ -167,7 +180,7 @@ export async function insertPolicy(data: ReinsuranceData): Promise<number> {
       $36, $37, $38, $39, $40, $41
     ) RETURNING id
   `, [
-    data.uy,
+    uyValue,
     data.extType || null,
     data.srl || null,
     data.loc || null,
@@ -247,8 +260,11 @@ export async function bulkInsertPolicies(policies: ReinsuranceData[]): Promise<n
         }
         values.push(`(${valuePlaceholders.join(', ')})`);
         
+        // Auto-generate uy from inception_year if not provided
+        const uyValue = data.uy || (data.inceptionYear ? String(data.inceptionYear) : null);
+
         params.push(
-          data.uy,
+          uyValue,
           data.extType || null,
           data.srl || null,
           data.loc || null,

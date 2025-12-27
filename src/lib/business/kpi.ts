@@ -133,12 +133,14 @@ export function aggregateKPIs(records: ReinsuranceData[]): KPIData {
  * Calculate UY performance data
  */
 export function calculateUYPerformance(records: ReinsuranceData[]): UYPerformanceRow[] {
-  // Group records by UY
+  // Group records by UY (auto-generate from inception_year if not provided)
   const groupedByUY = records.reduce((acc, record) => {
-    if (!acc[record.uy]) {
-      acc[record.uy] = [];
+    // Get UY - use provided uy or generate from inception_year
+    const uy = record.uy || (record.inceptionYear ? String(record.inceptionYear) : 'Unknown');
+    if (!acc[uy]) {
+      acc[uy] = [];
     }
-    acc[record.uy].push(record);
+    acc[uy].push(record);
     return acc;
   }, {} as Record<string, ReinsuranceData[]>);
 
@@ -259,7 +261,7 @@ export function filterRecords(records: ReinsuranceData[], filters: Partial<Recor
  */
 export function getFilterOptions(records: ReinsuranceData[]) {
   return {
-    uy: [...new Set(records.map(r => r.uy))].sort(),
+    uy: [...new Set(records.map(r => r.uy || (r.inceptionYear ? String(r.inceptionYear) : '')).filter(Boolean))].sort(),
     extType: [...new Set(records.map(r => r.extType))].sort(),
     broker: [...new Set(records.map(r => r.broker))].sort(),
     cedant: [...new Set(records.map(r => r.cedant))].sort(),

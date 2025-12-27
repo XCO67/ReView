@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown, ChevronUp, X } from "lucide-react";
 import type { RenewalFilterOptions } from "@/lib/renewals";
 import { MultiSelect } from "@/components/filters/MultiSelect";
 
@@ -87,6 +87,9 @@ export function RenewalFilters({
   const [loc, setLoc] = useState<string | undefined>(initialLoc);
   const [extType, setExtType] = useState<string[]>([]);
   const [isExpanded, setIsExpanded] = useState(true);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    new Set(['time', 'status', 'business', 'location', 'search'])
+  );
   
   // Debounce timers
   const countrySearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -209,6 +212,18 @@ export function RenewalFilters({
     });
   };
 
+  const toggleSection = (sectionKey: string) => {
+    setExpandedSections(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(sectionKey)) {
+        newSet.delete(sectionKey);
+      } else {
+        newSet.add(sectionKey);
+      }
+      return newSet;
+    });
+  };
+
   const activeFilterCount = [
     year, quarter, status, monthName, 
     country.length, businessType.length, className.length, subClass.length, extType.length,
@@ -216,53 +231,73 @@ export function RenewalFilters({
   ].filter(v => v && (Array.isArray(v) ? v.length > 0 : true)).length;
 
   return (
-    <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border/50 shadow-sm">
-      <div className="container mx-auto px-4 py-2">
-        <div className="rounded-lg border bg-card">
-          {/* Header with Collapse Button */}
-          <div className="px-3 py-2 border-b">
-            <div className="flex items-center justify-between">
+    <div className="container mx-auto px-4 py-2">
+      <div className="rounded-lg border bg-card">
+        {/* Header with Collapse Button */}
+        <div className="px-3 py-2 border-b">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity group"
+            >
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                  isExpanded ? "rotate-180" : "rotate-0"
+                )}
+              />
+              <h2 className="text-sm font-semibold text-foreground">Filters</h2>
+              {activeFilterCount > 0 && (
+                <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-primary/10 text-primary rounded-full">
+                  {activeFilterCount} Active
+                </span>
+              )}
+            </button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
+              onClick={resetFilters}
+            >
+              <X className="h-3 w-3 mr-1" />
+              Clear All
+            </Button>
+          </div>
+        </div>
+
+        {/* Collapsible Content */}
+        <div
+          className={cn(
+            "transition-all duration-300 ease-in-out",
+            isExpanded 
+              ? "max-h-[800px] opacity-100 overflow-y-auto overflow-x-hidden" 
+              : "max-h-0 overflow-hidden opacity-0"
+          )}
+        >
+          <div className="p-3 space-y-5 relative">
+            {/* Time Period Section */}
+            <div className="space-y-0">
               <button
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity group"
+                onClick={() => toggleSection('time')}
+                className="flex items-center gap-3 w-full hover:opacity-80 transition-opacity group py-2"
               >
-                <ChevronDown
-                  className={cn(
-                    "h-4 w-4 text-muted-foreground transition-transform duration-200",
-                    isExpanded ? "rotate-180" : "rotate-0"
-                  )}
-                />
-                <h2 className="text-sm font-semibold text-foreground">Filters</h2>
-                {activeFilterCount > 0 && (
-                  <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-primary/10 text-primary rounded-full">
-                    {activeFilterCount} Active
-                  </span>
+                <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide whitespace-nowrap">Time Period</h3>
+                <div className="flex-1 h-[1px] bg-gray-200 dark:bg-gray-700"></div>
+                {expandedSections.has('time') ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground transition-transform flex-shrink-0" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform flex-shrink-0" />
                 )}
               </button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
-                onClick={resetFilters}
+              <div
+                className={cn(
+                  "transition-all duration-300 ease-in-out",
+                  expandedSections.has('time')
+                    ? "max-h-[300px] opacity-100"
+                    : "max-h-0 opacity-0 overflow-hidden"
+                )}
               >
-                <X className="h-3 w-3 mr-1" />
-                Clear All
-              </Button>
-            </div>
-          </div>
-
-          {/* Collapsible Content */}
-          <div
-            className={cn(
-              "transition-all duration-300 ease-in-out",
-              isExpanded 
-                ? "max-h-[5000px] opacity-100 overflow-visible" 
-                : "max-h-0 overflow-hidden opacity-0"
-            )}
-          >
-            <div className="p-3 space-y-4 relative">
-              {/* Time Period Filters */}
-              <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-3 pt-3">
                   {/* Year Filter */}
                   <div className="space-y-2">
                     <label className="text-xs font-medium text-muted-foreground">Year</label>
@@ -277,16 +312,16 @@ export function RenewalFilters({
                       <SelectTrigger className="h-9">
                         <SelectValue placeholder="Year" />
                       </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Years</SelectItem>
-                    {YEARS.map((y) => (
-                      <SelectItem key={y} value={y}>
-                        {y}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                      <SelectContent>
+                        <SelectItem value="all">All Years</SelectItem>
+                        {YEARS.map((y) => (
+                          <SelectItem key={y} value={y}>
+                            {y}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
                   {/* Month Name Filter */}
                   <div className="space-y-2">
@@ -308,16 +343,16 @@ export function RenewalFilters({
                       <SelectTrigger className="h-9">
                         <SelectValue placeholder="Month" />
                       </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    {MONTH_NAMES.map((m) => (
-                      <SelectItem key={m.value} value={m.value}>
-                        {m.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        {MONTH_NAMES.map((m) => (
+                          <SelectItem key={m.value} value={m.value}>
+                            {m.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
                   {/* Quarter Filter */}
                   <div className="space-y-2">
@@ -331,7 +366,7 @@ export function RenewalFilters({
                           monthName ? "opacity-50 cursor-not-allowed" : ""
                         )}
                         onClick={() => {
-                          if (monthName) return; // Disabled when month is selected
+                          if (monthName) return;
                           setQuarter(undefined);
                           emitChange({ quarter: undefined });
                         }}
@@ -349,10 +384,9 @@ export function RenewalFilters({
                             monthName ? "opacity-50 cursor-not-allowed" : ""
                           )}
                           onClick={() => {
-                            if (monthName) return; // Disabled when month is selected
+                            if (monthName) return;
                             const nextQuarter = quarter === q ? undefined : q;
                             setQuarter(nextQuarter);
-                            // Clear month when quarter is selected
                             if (nextQuarter) {
                               setMonthName(undefined);
                               emitChange({ quarter: nextQuarter, monthName: undefined });
@@ -371,28 +405,74 @@ export function RenewalFilters({
                     )}
                   </div>
                 </div>
-
-              {/* Status Filter */}
-              <div className="flex gap-2">
-                {STATUS_OPTIONS.map((option) => (
-                  <Button
-                    key={option.value}
-                    variant={status === option.value ? "default" : "outline"}
-                    size="sm"
-                    className="h-9 px-4 text-xs flex-1"
-                    onClick={() => {
-                      const nextStatus = status === option.value ? undefined : option.value;
-                      setStatus(nextStatus);
-                      emitChange({ status: nextStatus });
-                    }}
-                  >
-                    {option.label}
-                  </Button>
-                ))}
               </div>
+            </div>
 
-              {/* Business Details */}
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            {/* Status Section */}
+            <div className="space-y-3">
+              <button
+                onClick={() => toggleSection('status')}
+                className="flex items-center gap-3 w-full hover:opacity-80 transition-opacity group py-2"
+              >
+                <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide whitespace-nowrap">Renewal Status</h3>
+                <div className="flex-1 h-[1px] bg-gray-200 dark:bg-gray-700"></div>
+                {expandedSections.has('status') ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground transition-transform flex-shrink-0" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform flex-shrink-0" />
+                )}
+              </button>
+              <div
+                className={cn(
+                  "transition-all duration-300 ease-in-out",
+                  expandedSections.has('status')
+                    ? "max-h-[200px] opacity-100"
+                    : "max-h-0 opacity-0 overflow-hidden"
+                )}
+              >
+                <div className="flex gap-2 pt-3">
+                  {STATUS_OPTIONS.map((option) => (
+                    <Button
+                      key={option.value}
+                      variant={status === option.value ? "default" : "outline"}
+                      size="sm"
+                      className="h-9 px-4 text-xs flex-1"
+                      onClick={() => {
+                        const nextStatus = status === option.value ? undefined : option.value;
+                        setStatus(nextStatus);
+                        emitChange({ status: nextStatus });
+                      }}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Business Details Section */}
+            <div className="space-y-0">
+              <button
+                onClick={() => toggleSection('business')}
+                className="flex items-center gap-3 w-full hover:opacity-80 transition-opacity group py-2"
+              >
+                <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide whitespace-nowrap">Business Details</h3>
+                <div className="flex-1 h-[1px] bg-gray-200 dark:bg-gray-700"></div>
+                {expandedSections.has('business') ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground transition-transform flex-shrink-0" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform flex-shrink-0" />
+                )}
+              </button>
+              <div
+                className={cn(
+                  "transition-all duration-300 ease-in-out",
+                  expandedSections.has('business')
+                    ? "max-h-[500px] opacity-100"
+                    : "max-h-0 opacity-0 overflow-hidden"
+                )}
+              >
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 pt-3">
                   {/* Source Filter (HO/FERO) */}
                   <div className="space-y-2">
                     <label className="text-xs font-medium text-muted-foreground">Office</label>
@@ -455,7 +535,7 @@ export function RenewalFilters({
                     options={filterOptions.classes}
                     onChange={(val) => {
                       setClassName(val);
-                      setSubClass([]); // Clear subclass when class changes
+                      setSubClass([]);
                       emitChange({ className: val, subClass: [] });
                     }}
                   />
@@ -479,88 +559,129 @@ export function RenewalFilters({
                       </div>
                     </div>
                   )}
+                </div>
               </div>
+            </div>
 
-              {/* Country Filter */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <MultiSelect
-                  label="Country"
-                  value={country}
-                  options={filterOptions.countries}
-                  onChange={(val) => {
-                    setCountry(val);
-                    emitChange({ country: val });
-                  }}
-                />
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">Search</label>
-                      <input
-                        type="text"
-                        value={countrySearch}
-                        onChange={(e) => {
-                          const value = e.target.value; // Don't trim here - preserve spaces for typing
-                          setCountrySearch(value);
-                          
-                          // Clear existing timeout
-                          if (countrySearchTimeoutRef.current) {
-                            clearTimeout(countrySearchTimeoutRef.current);
-                          }
-                          
-                          // Debounce the API call - wait 500ms after user stops typing
-                          // Trim only when sending to API
-                          countrySearchTimeoutRef.current = setTimeout(() => {
-                            const trimmedValue = value.trim();
-                            emitChange({ countrySearch: trimmedValue || undefined });
-                          }, 500);
-                        }}
-                        onBlur={() => {
-                          // Immediately emit on blur if there's a value
-                          if (countrySearchTimeoutRef.current) {
-                            clearTimeout(countrySearchTimeoutRef.current);
-                          }
-                          const trimmedValue = countrySearch.trim();
+            {/* Location Section */}
+            <div className="space-y-3">
+              <button
+                onClick={() => toggleSection('location')}
+                className="flex items-center gap-3 w-full hover:opacity-80 transition-opacity group py-2"
+              >
+                <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide whitespace-nowrap">Location</h3>
+                <div className="flex-1 h-[1px] bg-gray-200 dark:bg-gray-700"></div>
+                {expandedSections.has('location') ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground transition-transform flex-shrink-0" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform flex-shrink-0" />
+                )}
+              </button>
+              <div
+                className={cn(
+                  "transition-all duration-300 ease-in-out",
+                  expandedSections.has('location')
+                    ? "max-h-[300px] opacity-100"
+                    : "max-h-0 opacity-0 overflow-hidden"
+                )}
+              >
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3">
+                  <MultiSelect
+                    label="Country"
+                    value={country}
+                    options={filterOptions.countries}
+                    onChange={(val) => {
+                      setCountry(val);
+                      emitChange({ country: val });
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Search Section */}
+            <div className="space-y-3">
+              <button
+                onClick={() => toggleSection('search')}
+                className="flex items-center gap-3 w-full hover:opacity-80 transition-opacity group py-2"
+              >
+                <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide whitespace-nowrap">Search</h3>
+                <div className="flex-1 h-[1px] bg-gray-200 dark:bg-gray-700"></div>
+                {expandedSections.has('search') ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground transition-transform flex-shrink-0" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform flex-shrink-0" />
+                )}
+              </button>
+              <div
+                className={cn(
+                  "transition-all duration-300 ease-in-out",
+                  expandedSections.has('search')
+                    ? "max-h-[200px] opacity-100"
+                    : "max-h-0 opacity-0 overflow-hidden"
+                )}
+              >
+                <div className="grid grid-cols-2 gap-3 pt-3">
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground">Country Search</label>
+                    <input
+                      type="text"
+                      value={countrySearch}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setCountrySearch(value);
+                        
+                        if (countrySearchTimeoutRef.current) {
+                          clearTimeout(countrySearchTimeoutRef.current);
+                        }
+                        
+                        countrySearchTimeoutRef.current = setTimeout(() => {
+                          const trimmedValue = value.trim();
                           emitChange({ countrySearch: trimmedValue || undefined });
-                        }}
-                        placeholder="Country..."
-                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">SRL</label>
-                      <input
-                        type="text"
-                        value={srlSearch}
-                        onChange={(e) => {
-                          const value = e.target.value; // Don't trim here - preserve spaces for typing
-                          setSrlSearch(value);
-                          
-                          // Clear existing timeout
-                          if (srlSearchTimeoutRef.current) {
-                            clearTimeout(srlSearchTimeoutRef.current);
-                          }
-                          
-                          // Debounce the API call - wait 500ms after user stops typing
-                          // Trim only when sending to API
-                          srlSearchTimeoutRef.current = setTimeout(() => {
-                            const trimmedValue = value.trim();
-                            emitChange({ srlSearch: trimmedValue || undefined });
-                          }, 500);
-                        }}
-                        onBlur={() => {
-                          // Immediately emit on blur if there's a value
-                          if (srlSearchTimeoutRef.current) {
-                            clearTimeout(srlSearchTimeoutRef.current);
-                          }
-                          const trimmedValue = srlSearch.trim();
+                        }, 500);
+                      }}
+                      onBlur={() => {
+                        if (countrySearchTimeoutRef.current) {
+                          clearTimeout(countrySearchTimeoutRef.current);
+                        }
+                        const trimmedValue = countrySearch.trim();
+                        emitChange({ countrySearch: trimmedValue || undefined });
+                      }}
+                      placeholder="Search country..."
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground">SRL Search</label>
+                    <input
+                      type="text"
+                      value={srlSearch}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setSrlSearch(value);
+                        
+                        if (srlSearchTimeoutRef.current) {
+                          clearTimeout(srlSearchTimeoutRef.current);
+                        }
+                        
+                        srlSearchTimeoutRef.current = setTimeout(() => {
+                          const trimmedValue = value.trim();
                           emitChange({ srlSearch: trimmedValue || undefined });
-                        }}
-                        placeholder="SRL..."
-                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      />
-                    </div>
+                        }, 500);
+                      }}
+                      onBlur={() => {
+                        if (srlSearchTimeoutRef.current) {
+                          clearTimeout(srlSearchTimeoutRef.current);
+                        }
+                        const trimmedValue = srlSearch.trim();
+                        emitChange({ srlSearch: trimmedValue || undefined });
+                      }}
+                      placeholder="Search SRL..."
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
                   </div>
                 </div>
+              </div>
             </div>
           </div>
         </div>
@@ -568,4 +689,3 @@ export function RenewalFilters({
     </div>
   );
 }
-

@@ -1,136 +1,144 @@
-# ReView - Reinsurance Analytics Dashboard
+# Kuwait Re - Analytics Dashboard
 
-A comprehensive business intelligence platform for reinsurance operations, providing real-time analytics, performance tracking, and interactive data visualization.
+A comprehensive business intelligence dashboard for Kuwait Reinsurance Company built with Next.js 15, TypeScript, and PostgreSQL.
 
-## Overview
+## Prerequisites
 
-ReView is a modern web application built to analyze and visualize reinsurance data across multiple dimensions including geography, time periods, business partners, and policy metrics. The platform offers intuitive dashboards, advanced filtering capabilities, and comprehensive reporting tools.
+- **Node.js** 18+ (you have v22.16.0 ✓)
+- **npm** (you have 11.4.2 ✓)
+- **PostgreSQL** database (local or cloud)
 
-## Features
+## Quick Start
 
-### Core Functionality
-- **Interactive Dashboards** - Real-time KPI monitoring and performance metrics
-- **Advanced Analytics** - Multi-dimensional data analysis with comparative insights
-- **Geographic Visualization** - Interactive world map with country-level policy distribution
-- **Performance Tracking** - Loss ratio analysis, combined ratios, and technical results
-- **Client Management** - Broker and cedant performance analysis
-- **Renewals Management** - Policy renewal tracking and pipeline management
-- **Role-Based Access** - Secure user management with granular permissions
+### 1. Install Dependencies
 
-### Technical Capabilities
-- Real-time data processing and aggregation
-- Multi-select filtering across business dimensions
-- Responsive design for desktop and mobile devices
-- Secure authentication and session management
-- Database-driven architecture with optimized queries
+Dependencies are already installed. If you need to reinstall:
 
-## Technology Stack
-
-- **Framework**: Next.js 15 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Database**: PostgreSQL
-- **Charts**: Recharts, D3.js
-- **UI Components**: Custom component library with Radix UI primitives
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18 or higher
-- PostgreSQL 14 or higher
-- npm or yarn package manager
-
-### Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/XCO67/ReView.git
-cd ReView
-```
-
-2. Install dependencies:
 ```bash
 npm install
 ```
 
-3. Configure environment variables:
-Create a `.env` file in the root directory with the following variables:
+### 2. Set Up Environment Variables
 
-```env
-# Database Configuration
-DATABASE_URL=postgres://user:password@localhost:5432/database_name
-# OR use individual variables:
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=kuwait_dashboard
-DB_USER=dashboard_admin
-DB_PASSWORD=your_password
+1. Copy the example environment file:
+   ```bash
+   copy .env.example .env
+   ```
+   (On Linux/Mac: `cp .env.example .env`)
 
-# Application Settings
-SESSION_SECRET=your-secret-key-here
-DEFAULT_ADMIN_USERNAME=admin
-DEFAULT_ADMIN_EMAIL=admin@example.com
-DEFAULT_ADMIN_PASSWORD=secure_password
+2. Edit `.env` and configure:
+   - **Database connection**: Set `DATABASE_URL` or individual `DB_*` variables
+   - **SESSION_SECRET**: Generate a secure random string (required for authentication)
+   - **Admin credentials**: Optionally customize default admin user
+
+### 3. Set Up PostgreSQL Database
+
+#### Option A: Local PostgreSQL
+
+1. Install PostgreSQL if not already installed
+2. Create a database:
+   ```sql
+   CREATE DATABASE kuwaitre_db;
+   ```
+3. Update `.env` with your local database credentials
+
+#### Option B: Cloud Database (Supabase, AWS RDS, etc.)
+
+1. Create a PostgreSQL database on your cloud provider
+2. Update `.env` with your cloud database connection string
+
+### 4. Generate Session Secret
+
+Generate a secure session secret:
+
+**Windows PowerShell:**
+```powershell
+[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Minimum 0 -Maximum 256 }))
 ```
 
-4. Start the development server:
+**Linux/Mac:**
+```bash
+openssl rand -base64 32
+```
+
+Add the generated value to `.env` as `SESSION_SECRET`.
+
+### 5. Run the Development Server
+
 ```bash
 npm run dev
 ```
 
-7. Open your browser:
-Navigate to `http://localhost:3000`
+The application will be available at `http://localhost:3000`
+
+### 6. First Login
+
+On first run, the application will automatically:
+- Initialize the database tables
+- Create default roles
+- Set up a default admin user
+
+**Default Admin Credentials:**
+- Username: `mainadmin`
+- Email: `admin@kuwaitre.com`
+- Password: `KuwaitRe2024!Secure`
+
+⚠️ **Important**: Change the default admin password after first login!
+
+## Available Scripts
+
+- `npm run dev` - Start development server with Turbopack
+- `npm run build` - Build for production
+- `npm run start` - Start production server
+- `npm run lint` - Run ESLint
+- `npm run lint:fix` - Fix ESLint errors
+- `npm run type-check` - Type check without building
 
 ## Project Structure
 
 ```
 ReView/
 ├── src/
-│   ├── app/              # Next.js pages and API routes
-│   ├── components/       # Reusable React components
-│   ├── lib/             # Utility functions and business logic
-│   └── contexts/        # React context providers
-├── public/              # Static assets
-└── package.json         # Dependencies and scripts
+│   ├── app/              # Next.js app router pages
+│   ├── components/        # React components
+│   ├── lib/              # Utilities and business logic
+│   ├── contexts/         # React contexts
+│   └── hooks/            # Custom React hooks
+├── public/               # Static assets
+└── scripts/              # Utility scripts
 ```
 
-## Available Scripts
+## Features
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run lint` - Run ESLint
+- 🔐 Role-based authentication and authorization
+- 📊 Interactive analytics dashboards
+- 🗺️ World map visualizations
+- 📈 Multiple chart types (bar, scatter, quadrant, etc.)
+- 🎨 Dark/light theme support
+- 👥 User and role management
+- 📝 Audit logging
+- 🔒 Security features (rate limiting, session management)
 
-## Database Setup
+## Troubleshooting
 
-The application requires a PostgreSQL database. See `DATABASE_SETUP.md` for detailed instructions on:
-- Database creation
-- Schema initialization
-- Data import procedures
-- Maintenance tasks
+### Database Connection Issues
 
-## Security
+- Verify PostgreSQL is running
+- Check database credentials in `.env`
+- Ensure database exists
+- For cloud databases, verify network access and SSL settings
 
-- Environment variables are excluded from version control
-- Secure session management with HTTP-only cookies
-- Role-based access control (RBAC)
-- Input validation and sanitization
-- SQL injection prevention through parameterized queries
+### Session Secret Error
 
-## Deployment
+- Ensure `SESSION_SECRET` is set in `.env`
+- Use a secure random string (at least 32 characters)
 
-The application can be deployed to various platforms:
-- Vercel (recommended for Next.js)
-- AWS, Azure, or Google Cloud
-- Self-hosted servers
+### Port Already in Use
 
-Refer to deployment documentation for platform-specific instructions.
-
-## License
-
-Proprietary software - All rights reserved
+If port 3000 is in use, Next.js will automatically try the next available port.
 
 ## Support
 
-For technical support or questions, please contact the development team.
+For issues or questions, please contact the development team.
+
+

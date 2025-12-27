@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { SideFilterPanel } from '@/components/filters/SideFilterPanel';
 import { ChatBot } from '@/components/chat/ChatBot';
@@ -10,6 +10,8 @@ import { TopCedantsList } from '@/components/charts/TopCedantsChart';
 import { TopBrokersList } from '@/components/charts/TopBrokersChart';
 import { ReinsuranceData } from '@/lib/schema';
 import { aggregateKPIs, calculateUYPerformance, calculateUYPerformanceTotals } from '@/lib/kpi';
+import { useReinsuranceData } from '@/hooks/useReinsuranceData';
+import { DEFAULT_FILTER_STATE } from '@/lib/constants/filters';
 
 interface FilterState {
   year: string | null;
@@ -26,9 +28,6 @@ interface FilterState {
 }
 
 export default function DashboardPage() {
-  const [allData, setAllData] = useState<ReinsuranceData[]>([]); // All data for filter options
-  const [data, setData] = useState<ReinsuranceData[]>([]); // Filtered data for display
-  const [isLoading, setIsLoading] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
     year: null,
     extType: null,
@@ -44,92 +43,43 @@ export default function DashboardPage() {
   });
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
 
-  // Load all data initially for filter options
-  useEffect(() => {
-    const loadAllData = async () => {
-      setIsLoading(true);
-      try {
-        const dataResponse = await fetch(`/api/data?limit=100000`);
-        
-        if (!dataResponse.ok) {
-          throw new Error(`API request failed: ${dataResponse.status} ${dataResponse.statusText}`);
-        }
-        
-        const dataResult = await dataResponse.json();
-        
-        if (!dataResult || !dataResult.data || !Array.isArray(dataResult.data)) {
-          console.error('Invalid data structure received:', dataResult);
-          throw new Error('Invalid data structure received from API');
-        }
-        
-        setAllData(dataResult.data);
-        setData(dataResult.data); // Initially show all data
-      } catch (error) {
-        console.error('Failed to load dashboard data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  // Build filter params for API
+  const filterParams = useMemo(() => {
+    const params: Record<string, string | null> = {};
+    if (filters.year) params.year = filters.year;
+    if (filters.country) params.country = filters.country;
+    if (filters.region) params.region = filters.region;
+    if (filters.hub) params.hub = filters.hub;
+    if (filters.cedant) params.cedant = filters.cedant;
+    return params;
+  }, [filters.year, filters.country, filters.region, filters.hub, filters.cedant]);
 
-    loadAllData();
-  }, []);
+  // Load data using shared hook
+  const { data: apiData, isLoading } = useReinsuranceData({
+    limit: 100000,
+    autoFetch: true,
+    filters: filterParams,
+  });
 
-  // Load filtered data when filters change
-  useEffect(() => {
-    const loadFilteredData = async () => {
-      setIsLoading(true);
-      try {
-        const params = new URLSearchParams();
-        
-        if (filters.year) params.append('year', filters.year);
-        if (filters.country) params.append('country', filters.country);
-        if (filters.region) params.append('region', filters.region);
-        if (filters.hub) params.append('hub', filters.hub);
-        if (filters.cedant) params.append('cedant', filters.cedant);
-        
-        params.append('limit', '100000');
-        
-        const dataResponse = await fetch(`/api/data?${params.toString()}`);
-        
-        if (!dataResponse.ok) {
-          throw new Error(`API request failed: ${dataResponse.status} ${dataResponse.statusText}`);
-        }
-        
-        const dataResult = await dataResponse.json();
-        
-        if (!dataResult || !dataResult.data || !Array.isArray(dataResult.data)) {
-          console.error('Invalid data structure received:', dataResult);
-          throw new Error('Invalid data structure received from API');
-        }
-        
-        let filtered = dataResult.data;
-        
-        // Apply client-side filters for extType, broker, class, and subClass (not in API yet)
-        if (filters.extType && Array.isArray(filters.extType) && filters.extType.length > 0) {
-          filtered = filtered.filter((d: ReinsuranceData) => d.extType && filters.extType!.includes(d.extType));
-        }
-        if (filters.broker) {
-          filtered = filtered.filter((d: ReinsuranceData) => d.broker === filters.broker);
-        }
-        if (filters.class && Array.isArray(filters.class) && filters.class.length > 0) {
-          filtered = filtered.filter((d: ReinsuranceData) => d.className && filters.class!.includes(d.className));
-        }
-        if (filters.subClass && Array.isArray(filters.subClass) && filters.subClass.length > 0) {
-          filtered = filtered.filter((d: ReinsuranceData) => d.subClass && filters.subClass!.includes(d.subClass));
-        }
-        
-        setData(filtered);
-      } catch (error) {
-        console.error('Failed to load filtered data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (allData.length > 0) {
-      loadFilteredData();
+  // Apply client-side filters for extType, broker, class, and subClass
+  const data = useMemo(() => {
+    let filtered = [...apiData];
+    
+    if (filters.extType && Array.isArray(filters.extType) && filters.extType.length > 0) {
+      filtered = filtered.filter((d: ReinsuranceData) => d.extType && filters.extType!.includes(d.extType));
     }
-  }, [filters, allData.length]);
+    if (filters.broker) {
+      filtered = filtered.filter((d: ReinsuranceData) => d.broker === filters.broker);
+    }
+    if (filters.class && Array.isArray(filters.class) && filters.class.length > 0) {
+      filtered = filtered.filter((d: ReinsuranceData) => d.className && filters.class!.includes(d.className));
+    }
+    if (filters.subClass && Array.isArray(filters.subClass) && filters.subClass.length > 0) {
+      filtered = filtered.filter((d: ReinsuranceData) => d.subClass && filters.subClass!.includes(d.subClass));
+    }
+    
+    return filtered;
+  }, [apiData, filters.extType, filters.broker, filters.class, filters.subClass]);
 
   // Function to clear filters
   const clearFilters = () => {
@@ -174,7 +124,7 @@ export default function DashboardPage() {
       <SideFilterPanel
         isOpen={isFilterPanelOpen}
         onToggle={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-        data={allData}
+        data={data}
         filters={filters}
         onFiltersChange={setFilters}
         onClearFilters={clearFilters}

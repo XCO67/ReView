@@ -6,7 +6,7 @@ import { z } from 'zod';
  */
 export const ReinsuranceDataSchema = z.object({
   // Display fields (for names, not calculations)
-  uy: z.string().min(1, 'UY is required'),
+  uy: z.string().optional(), // UY is optional, will be auto-generated from inception_year
   extType: z.string().min(1, 'Ext Type is required'),
   srl: z.string().optional(), // Serial Number
   loc: z.string().optional(), // Loc

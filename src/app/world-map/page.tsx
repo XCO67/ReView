@@ -470,12 +470,14 @@ const displayedCountries = useMemo(() => {
     <TooltipProvider>
       <div className="min-h-screen bg-background" style={{ scrollBehavior: 'smooth' }}>
         {/* Top Filter Panel */}
-        <TopFilterPanel
-          data={allData}
-          filters={filters}
-          onFiltersChange={setFilters}
-          onClearFilters={clearFilters}
-        />
+        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border/50 shadow-sm">
+          <TopFilterPanel
+            data={allData}
+            filters={filters}
+            onFiltersChange={setFilters}
+            onClearFilters={clearFilters}
+          />
+        </div>
 
         {/* Header */}
         <div className="bg-background border-b">
