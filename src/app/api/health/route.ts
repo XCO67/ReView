@@ -6,7 +6,20 @@ import { getDb } from '@/lib/database/connection';
  * Returns status of the application and database connection
  */
 export async function GET() {
-  const health = {
+  const health: {
+    status: string;
+    timestamp: string;
+    environment: string;
+    port: string;
+    hostname: string;
+    checks: {
+      database: string;
+      sessionSecret: boolean;
+      databaseUrl: boolean;
+      databaseTime?: string;
+      databaseError?: string;
+    };
+  } = {
     status: 'ok',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'unknown',
@@ -24,7 +37,7 @@ export async function GET() {
     const db = getDb();
     const result = await db.query('SELECT 1 as test, NOW() as current_time');
     health.checks.database = 'connected';
-    health.checks.databaseTime = result.rows[0]?.current_time;
+    health.checks.databaseTime = result.rows[0]?.current_time as string;
   } catch (error) {
     health.status = 'degraded';
     const errorMsg = error instanceof Error ? error.message : String(error);
