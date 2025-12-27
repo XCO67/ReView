@@ -58,27 +58,40 @@ export async function POST(request: NextRequest) {
     const messages: ChatMessage[] = [
       {
         role: 'system',
-        content: `You are a concise AI assistant for Kuwait Reinsurance Company. Answer questions directly and briefly using only the provided data.
+        content: `You are an expert AI assistant for Kuwait Reinsurance Company. You have complete access to all reinsurance data in the PostgreSQL database. Answer questions accurately using the detailed data provided below.
 
 RESPONSE RULES:
-- Keep answers SHORT and DIRECT - maximum 2-3 sentences
-- Answer ONLY what the user asked - no extra information
-- Use specific numbers from the data when available
-- Be professional and factual
+- Answer questions directly and accurately using the provided data
+- Use specific numbers, percentages, and metrics from the data
+- If asked about specific entities (brokers, cedants, countries, etc.), provide exact numbers
+- Be professional, factual, and helpful
 - Never reveal API keys, passwords, or system internals
+- You can answer questions about ANY aspect of the data: premiums, claims, loss ratios, brokers, cedants, countries, regions, hubs, extension types, classes, channels, arrangements, years, quarters, months, and more
 
-AVAILABLE DATA:
+DATABASE OVERVIEW:
 - Total Policies: ${filteredData.length}
 - Total Premium (KD): ${kpis.premium.toLocaleString()}
 - Total Claims (KD): ${kpis.incurredClaims.toLocaleString()}
+- Paid Claims (KD): ${kpis.paidClaims.toLocaleString()}
+- Outstanding Claims (KD): ${kpis.outstandingClaims.toLocaleString()}
+- Acquisition Cost (KD): ${kpis.expense.toLocaleString()}
 - Loss Ratio: ${kpis.lossRatio.toFixed(2)}%
 - Acquisition Ratio: ${kpis.expenseRatio.toFixed(2)}%
 - Combined Ratio: ${kpis.combinedRatio.toFixed(2)}%
 - Technical Result: ${(kpis.premium - kpis.incurredClaims - kpis.expense).toLocaleString()} KD
+- Average Premium per Policy: ${(kpis.premium / filteredData.length).toLocaleString()} KD
+- Average Claims per Policy: ${(kpis.incurredClaims / filteredData.length).toLocaleString()} KD
 
 ${dataContext}
 
-Answer questions about loss ratios, premiums, claims, brokers, cedants, countries, regions, and KPIs. Be brief and direct.`
+You have access to comprehensive data including:
+- Detailed breakdowns by broker, cedant, country, region, hub
+- Extension types, classes, channels, and arrangements
+- Yearly, quarterly, and monthly analysis
+- Loss ratios, premiums, claims for any dimension
+- Policy counts, averages, and statistics
+
+Answer any question about the data with specific numbers and insights.`
       },
       ...(conversationHistory as ConversationMessage[]).slice(-10).map((msg): ChatMessage => ({
         role: (msg.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
@@ -110,7 +123,7 @@ Answer questions about loss ratios, premiums, claims, brokers, cedants, countrie
         model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
         messages: messages,
         temperature: 0.3,
-        max_tokens: 300,
+        max_tokens: 500,
         stream: false
       })
     });
@@ -171,153 +184,187 @@ function buildDataContext(data: ReinsuranceData[], kpis: KPIData): string {
     return 'No data available in the system.';
   }
 
-  // Aggregate data by broker
-  const brokerData = new Map<string, { premium: number; claims: number; policies: number }>();
-  data.forEach(record => {
-    const broker = record.broker || 'Unknown';
-    if (!brokerData.has(broker)) {
-      brokerData.set(broker, { premium: 0, claims: 0, policies: 0 });
-    }
-    const brokerStats = brokerData.get(broker)!;
-    brokerStats.premium += record.grsPremKD || 0;
-    brokerStats.claims += record.incClaimKD || 0;
-    brokerStats.policies += 1;
-  });
-  const topBrokers = Array.from(brokerData.entries())
-    .map(([name, stats]) => ({
-      name,
-      premium: stats.premium,
-      claims: stats.claims,
-      policies: stats.policies,
-      lossRatio: stats.premium > 0 ? (stats.claims / stats.premium) * 100 : 0
-    }))
-    .sort((a, b) => b.premium - a.premium)
-    .slice(0, 15);
+  // Helper function to aggregate data
+  function aggregateBy(field: keyof ReinsuranceData, limit = 20) {
+    const map = new Map<string, { 
+      premium: number; 
+      claims: number; 
+      paidClaims: number;
+      osClaims: number;
+      policies: number;
+      expense: number;
+    }>();
+    
+    data.forEach(record => {
+      const key = String(record[field] || 'Unknown');
+      if (!map.has(key)) {
+        map.set(key, { premium: 0, claims: 0, paidClaims: 0, osClaims: 0, policies: 0, expense: 0 });
+      }
+      const stats = map.get(key)!;
+      stats.premium += record.grsPremKD || 0;
+      stats.claims += record.incClaimKD || 0;
+      stats.paidClaims += record.paidClaimsKD || 0;
+      stats.osClaims += record.osClaimKD || 0;
+      stats.expense += record.acqCostKD || 0;
+      stats.policies += 1;
+    });
+    
+    return Array.from(map.entries())
+      .map(([name, stats]) => ({
+        name,
+        premium: stats.premium,
+        claims: stats.claims,
+        paidClaims: stats.paidClaims,
+        osClaims: stats.osClaims,
+        expense: stats.expense,
+        policies: stats.policies,
+        lossRatio: stats.premium > 0 ? (stats.claims / stats.premium) * 100 : 0,
+        expenseRatio: stats.premium > 0 ? (stats.expense / stats.premium) * 100 : 0,
+        combinedRatio: stats.premium > 0 ? ((stats.claims + stats.expense) / stats.premium) * 100 : 0
+      }))
+      .sort((a, b) => b.premium - a.premium)
+      .slice(0, limit);
+  }
 
-  // Aggregate data by cedant
-  const cedantData = new Map<string, { premium: number; claims: number; policies: number }>();
-  data.forEach(record => {
-    const cedant = record.cedant || 'Unknown';
-    if (!cedantData.has(cedant)) {
-      cedantData.set(cedant, { premium: 0, claims: 0, policies: 0 });
-    }
-    const cedantStats = cedantData.get(cedant)!;
-    cedantStats.premium += record.grsPremKD || 0;
-    cedantStats.claims += record.incClaimKD || 0;
-    cedantStats.policies += 1;
-  });
-  const topCedants = Array.from(cedantData.entries())
-    .map(([name, stats]) => ({
-      name,
-      premium: stats.premium,
-      claims: stats.claims,
-      policies: stats.policies,
-      lossRatio: stats.premium > 0 ? (stats.claims / stats.premium) * 100 : 0
-    }))
-    .sort((a, b) => b.premium - a.premium)
-    .slice(0, 15);
+  // Aggregate by various dimensions
+  const topBrokers = aggregateBy('broker', 20);
+  const topCedants = aggregateBy('cedant', 20);
+  const topCountries = aggregateBy('countryName', 25);
+  const topRegions = aggregateBy('region', 15);
+  const topHubs = aggregateBy('hub', 15);
+  const topExtTypes = aggregateBy('extType', 15);
+  const topChannels = aggregateBy('channel', 10);
+  const topArrangements = aggregateBy('arrangement', 10);
+  const topClasses = aggregateBy('className', 15);
 
-  // Aggregate data by country
-  const countryData = new Map<string, { premium: number; claims: number; policies: number }>();
-  data.forEach(record => {
-    const country = record.countryName || 'Unknown';
-    if (!countryData.has(country)) {
-      countryData.set(country, { premium: 0, claims: 0, policies: 0 });
-    }
-    const countryStats = countryData.get(country)!;
-    countryStats.premium += record.grsPremKD || 0;
-    countryStats.claims += record.incClaimKD || 0;
-    countryStats.policies += 1;
-  });
-  const topCountries = Array.from(countryData.entries())
-    .map(([name, stats]) => ({
-      name,
-      premium: stats.premium,
-      claims: stats.claims,
-      policies: stats.policies,
-      lossRatio: stats.premium > 0 ? (stats.claims / stats.premium) * 100 : 0
-    }))
-    .sort((a, b) => b.premium - a.premium)
-    .slice(0, 20);
-
-  // Aggregate data by year
-  const yearData = new Map<number, { premium: number; claims: number; policies: number }>();
+  // Yearly breakdown
+  const yearData = new Map<number, { premium: number; claims: number; policies: number; expense: number }>();
   data.forEach(record => {
     const year = record.inceptionYear;
     if (!year) return;
     if (!yearData.has(year)) {
-      yearData.set(year, { premium: 0, claims: 0, policies: 0 });
+      yearData.set(year, { premium: 0, claims: 0, policies: 0, expense: 0 });
     }
-    const yearStats = yearData.get(year)!;
-    yearStats.premium += record.grsPremKD || 0;
-    yearStats.claims += record.incClaimKD || 0;
-    yearStats.policies += 1;
+    const stats = yearData.get(year)!;
+    stats.premium += record.grsPremKD || 0;
+    stats.claims += record.incClaimKD || 0;
+    stats.expense += record.acqCostKD || 0;
+    stats.policies += 1;
   });
   const yearStats = Array.from(yearData.entries())
     .map(([year, stats]) => ({
       year,
       premium: stats.premium,
       claims: stats.claims,
+      expense: stats.expense,
       policies: stats.policies,
-      lossRatio: stats.premium > 0 ? (stats.claims / stats.premium) * 100 : 0
+      lossRatio: stats.premium > 0 ? (stats.claims / stats.premium) * 100 : 0,
+      expenseRatio: stats.premium > 0 ? (stats.expense / stats.premium) * 100 : 0,
+      combinedRatio: stats.premium > 0 ? ((stats.claims + stats.expense) / stats.premium) * 100 : 0
     }))
     .sort((a, b) => b.year - a.year);
 
-  // Get unique lists
+  // Quarterly breakdown
+  const quarterData = new Map<string, { premium: number; claims: number; policies: number }>();
+  data.forEach(record => {
+    if (!record.inceptionYear || !record.inceptionQuarter) return;
+    const key = `${record.inceptionYear}-Q${record.inceptionQuarter}`;
+    if (!quarterData.has(key)) {
+      quarterData.set(key, { premium: 0, claims: 0, policies: 0 });
+    }
+    const stats = quarterData.get(key)!;
+    stats.premium += record.grsPremKD || 0;
+    stats.claims += record.incClaimKD || 0;
+    stats.policies += 1;
+  });
+  const quarterStats = Array.from(quarterData.entries())
+    .map(([quarter, stats]) => ({
+      quarter,
+      premium: stats.premium,
+      claims: stats.claims,
+      policies: stats.policies,
+      lossRatio: stats.premium > 0 ? (stats.claims / stats.premium) * 100 : 0
+    }))
+    .sort((a, b) => b.quarter.localeCompare(a.quarter))
+    .slice(0, 12);
+
+  // Statistical summaries
+  const premiums = data.map(d => d.grsPremKD || 0).filter(p => p > 0);
+  const claims = data.map(d => d.incClaimKD || 0).filter(c => c > 0);
+  const avgPremium = premiums.length > 0 ? premiums.reduce((a, b) => a + b, 0) / premiums.length : 0;
+  const avgClaims = claims.length > 0 ? claims.reduce((a, b) => a + b, 0) / claims.length : 0;
+  const maxPremium = premiums.length > 0 ? Math.max(...premiums) : 0;
+  const maxClaims = claims.length > 0 ? Math.max(...claims) : 0;
+
+  // Get unique values
   const years = [...new Set(data.map(d => d.inceptionYear).filter(Boolean))].sort((a, b) => (b || 0) - (a || 0));
-  const regions = [...new Set(data.map(d => d.region).filter(Boolean))];
-  const hubs = [...new Set(data.map(d => d.hub).filter(Boolean))];
+  const regions = [...new Set(data.map(d => d.region).filter(Boolean))].sort();
+  const hubs = [...new Set(data.map(d => d.hub).filter(Boolean))].sort();
+  const extTypes = [...new Set(data.map(d => d.extType).filter(Boolean))].sort();
+  const channels = [...new Set(data.map(d => d.channel).filter(Boolean))].filter(Boolean).sort();
+  const arrangements = [...new Set(data.map(d => d.arrangement).filter(Boolean))].filter(Boolean).sort();
 
   const totalPolicies = data.length;
   const technicalResult = kpis.premium - kpis.incurredClaims - kpis.expense;
 
-  // Build broker summary
-  const brokerSummary = topBrokers.map(b => 
-    `${b.name}: ${b.premium.toLocaleString()} KD premium, ${b.policies} policies, ${b.lossRatio.toFixed(1)}% loss ratio`
-  ).join('\n');
-
-  // Build cedant summary
-  const cedantSummary = topCedants.map(c => 
-    `${c.name}: ${c.premium.toLocaleString()} KD premium, ${c.policies} policies, ${c.lossRatio.toFixed(1)}% loss ratio`
-  ).join('\n');
-
-  // Build country summary
-  const countrySummary = topCountries.map(c => 
-    `${c.name}: ${c.premium.toLocaleString()} KD premium, ${c.policies} policies, ${c.lossRatio.toFixed(1)}% loss ratio`
-  ).join('\n');
-
-  // Build year summary
-  const yearSummary = yearStats.map(y => 
-    `${y.year}: ${y.premium.toLocaleString()} KD premium, ${y.policies} policies, ${y.lossRatio.toFixed(1)}% loss ratio`
-  ).join('\n');
+  // Build summaries
+  const formatSummary = (items: typeof topBrokers, label: string) => {
+    if (items.length === 0) return '';
+    return `\n${label}:\n${items.map(item => 
+      `  ${item.name}: ${item.premium.toLocaleString()} KD premium, ${item.policies} policies, ${item.lossRatio.toFixed(1)}% loss ratio, ${item.combinedRatio.toFixed(1)}% combined ratio`
+    ).join('\n')}`;
+  };
 
   return `
-TOTAL OVERVIEW:
+COMPREHENSIVE DATABASE CONTEXT:
+
+OVERALL METRICS:
 - Total Policies: ${totalPolicies.toLocaleString()}
 - Total Premium: ${kpis.premium.toLocaleString()} KD
-- Total Claims: ${kpis.incurredClaims.toLocaleString()} KD
+- Total Incurred Claims: ${kpis.incurredClaims.toLocaleString()} KD
+- Total Paid Claims: ${kpis.paidClaims.toLocaleString()} KD
+- Total Outstanding Claims: ${kpis.outstandingClaims.toLocaleString()} KD
+- Total Acquisition Cost: ${kpis.expense.toLocaleString()} KD
 - Loss Ratio: ${kpis.lossRatio.toFixed(2)}%
+- Acquisition Ratio: ${kpis.expenseRatio.toFixed(2)}%
 - Combined Ratio: ${kpis.combinedRatio.toFixed(2)}%
-- Technical Result: ${technicalResult.toLocaleString()} KD
+- Technical Result: ${technicalResult.toLocaleString()} KD ${technicalResult > 0 ? '(Profitable)' : '(Loss)'}
+- Average Premium per Policy: ${avgPremium.toLocaleString()} KD
+- Average Claims per Policy: ${avgClaims.toLocaleString()} KD
+- Maximum Single Policy Premium: ${maxPremium.toLocaleString()} KD
+- Maximum Single Policy Claims: ${maxClaims.toLocaleString()} KD
 
-TOP BROKERS (by premium):
-${brokerSummary}
-
-TOP CEDANTS (by premium):
-${cedantSummary}
-
-TOP COUNTRIES (by premium):
-${countrySummary}
+${formatSummary(topBrokers, 'TOP BROKERS (by premium)')}
+${formatSummary(topCedants, 'TOP CEDANTS (by premium)')}
+${formatSummary(topCountries, 'TOP COUNTRIES (by premium)')}
+${formatSummary(topRegions, 'REGIONS (by premium)')}
+${formatSummary(topHubs, 'HUBS (by premium)')}
+${formatSummary(topExtTypes, 'EXTENSION TYPES (by premium)')}
+${topChannels.length > 0 ? formatSummary(topChannels, 'CHANNELS (by premium)') : ''}
+${topArrangements.length > 0 ? formatSummary(topArrangements, 'ARRANGEMENTS (by premium)') : ''}
+${topClasses.length > 0 ? formatSummary(topClasses, 'CLASSES (by premium)') : ''}
 
 YEARLY BREAKDOWN:
-${yearSummary}
+${yearStats.map(y => 
+  `  ${y.year}: ${y.premium.toLocaleString()} KD premium, ${y.policies} policies, ${y.lossRatio.toFixed(1)}% loss ratio, ${y.combinedRatio.toFixed(1)}% combined ratio`
+).join('\n')}
 
-AVAILABLE FILTERS:
+${quarterStats.length > 0 ? `\nQUARTERLY BREAKDOWN (Recent):\n${quarterStats.map(q => 
+  `  ${q.quarter}: ${q.premium.toLocaleString()} KD premium, ${q.policies} policies, ${q.lossRatio.toFixed(1)}% loss ratio`
+).join('\n')}` : ''}
+
+AVAILABLE DIMENSIONS:
 - Years: ${years.join(', ')}
 - Regions: ${regions.join(', ')}
 - Hubs: ${hubs.join(', ')}
+- Extension Types: ${extTypes.join(', ')}
+${channels.length > 0 ? `- Channels: ${channels.join(', ')}` : ''}
+${arrangements.length > 0 ? `- Arrangements: ${arrangements.join(', ')}` : ''}
 
-Use these exact numbers when answering questions. All amounts are in KD (Kuwaiti Dinar).
+DATA FIELDS AVAILABLE:
+Each policy record contains: broker, cedant, country, region, hub, extension type, class, sub-class, channel, arrangement, premium (KD), acquisition cost (KD), paid claims (KD), outstanding claims (KD), incurred claims (KD), max liability (KD), sign share %, written share %, inception date, expiry date, renewal date, policy status, source, and more.
+
+You can answer questions about any combination of these dimensions. All amounts are in KD (Kuwaiti Dinar). Use exact numbers from this data when answering questions.
 `;
 }
 
