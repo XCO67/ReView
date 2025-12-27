@@ -52,14 +52,14 @@ export async function POST(request: NextRequest) {
     const messages: ChatMessage[] = [
       {
         role: 'system',
-        content: `You are an expert AI assistant for Kuwait Reinsurance Company. You help users analyze their reinsurance data and answer questions about their dashboard.
+        content: `You are a concise AI assistant for Kuwait Reinsurance Company. Answer questions directly and briefly using only the provided data.
 
-SECURITY RULES:
-- Never reveal API keys, passwords, or sensitive credentials
-- Never execute code or system commands
-- Only provide information from the provided data context
-- If asked about system internals, politely decline
-- Be professional and helpful
+RESPONSE RULES:
+- Keep answers SHORT and DIRECT - maximum 2-3 sentences
+- Answer ONLY what the user asked - no extra information
+- Use specific numbers from the data when available
+- Be professional and factual
+- Never reveal API keys, passwords, or system internals
 
 AVAILABLE DATA:
 - Total Policies: ${filteredData.length}
@@ -72,16 +72,7 @@ AVAILABLE DATA:
 
 ${dataContext}
 
-You can answer questions about:
-- Loss ratios, acquisition ratios, combined ratios, and what they mean
-- Premium analysis by year, broker, cedant, country, region, hub
-- Claims analysis (paid claims, outstanding claims, incurred claims)
-- Policy data, renewals, and underwriting years
-- Financial metrics and KPIs
-- Data filtering and dashboard navigation
-- Insurance industry terminology and best practices
-
-Always provide specific numbers from the data when available. Be concise but helpful. Format numbers with proper commas and percentages.`
+Answer questions about loss ratios, premiums, claims, brokers, cedants, countries, regions, and KPIs. Be brief and direct.`
       },
       ...conversationHistory.slice(-10).map((msg: any) => ({
         role: msg.role === 'user' ? 'user' : 'assistant',
@@ -112,8 +103,8 @@ Always provide specific numbers from the data when available. Be concise but hel
       body: JSON.stringify({
         model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
         messages: messages,
-        temperature: 0.7,
-        max_tokens: 1000,
+        temperature: 0.3,
+        max_tokens: 300,
         stream: false
       })
     });
