@@ -20,6 +20,9 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
+# Clean any existing build artifacts and TypeScript cache
+RUN rm -rf .next tsconfig.tsbuildinfo 2>/dev/null || true
+
 # Build the application
 RUN npm run build
 
