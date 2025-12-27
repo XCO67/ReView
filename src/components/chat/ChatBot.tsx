@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,12 @@ import {
   Sparkles,
   X,
   Minimize2,
-  Maximize2
+  Maximize2,
+  Loader2,
+  TrendingUp,
+  BarChart3,
+  Globe,
+  Calculator
 } from 'lucide-react';
 import { logger } from '@/lib/utils/logger';
 
@@ -122,7 +127,7 @@ export function ChatBot({ className }: ChatBotProps) {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -132,14 +137,14 @@ export function ChatBot({ className }: ChatBotProps) {
   if (!isOpen) {
     return (
       <motion.div
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.3 }}
-        className={`fixed right-4 top-1/2 transform -translate-y-1/2 z-50 ${className}`}
+        initial={{ opacity: 0, scale: 0.8, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.3, type: 'spring' }}
+        className={`fixed right-6 bottom-6 z-50 ${className}`}
       >
         <Button
           onClick={() => setIsOpen(true)}
-          className="h-12 w-12 rounded-full shadow-lg bg-primary hover:bg-primary/90"
+          className="h-14 w-14 rounded-full shadow-2xl bg-primary hover:bg-primary/90 transition-all hover:scale-110"
           size="icon"
         >
           <MessageCircle className="h-6 w-6" />
@@ -151,49 +156,53 @@ export function ChatBot({ className }: ChatBotProps) {
   return (
     <>
       {/* Backdrop */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
-        className="fixed inset-0 bg-black/20 z-40"
-        onClick={() => setIsOpen(false)}
-      />
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
+          onClick={() => setIsOpen(false)}
+        />
+      </AnimatePresence>
       
       {/* Chat Window */}
       <motion.div
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.3 }}
-        className={`fixed right-0 top-0 h-full z-50 ${className} ${isMinimized ? 'w-80' : 'w-96'}`}
+        initial={{ opacity: 0, x: 100, scale: 0.95 }}
+        animate={{ opacity: 1, x: 0, scale: 1 }}
+        exit={{ opacity: 0, x: 100, scale: 0.95 }}
+        transition={{ duration: 0.3, type: 'spring', damping: 25 }}
+        className={`fixed right-6 bottom-6 z-50 ${className} ${isMinimized ? 'w-80' : 'w-[420px]'} h-[600px]`}
       >
-        <Card className="h-full flex flex-col shadow-xl border-0 bg-background/95 backdrop-blur rounded-none">
-        <CardHeader className="pb-3 flex-shrink-0 border-b">
+        <Card className="h-full flex flex-col shadow-2xl border border-border/50 bg-background/98 backdrop-blur-xl rounded-2xl overflow-hidden">
+        <CardHeader className="pb-3 pt-4 px-5 flex-shrink-0 border-b bg-gradient-to-r from-primary/5 to-primary/10">
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Bot className="h-4 w-4 text-primary" />
-              Kuwait Re AI Assistant
-              <Badge variant="secondary" className="text-xs">
-                <Sparkles className="h-3 w-3 mr-1" />
-                AI Ready
-              </Badge>
-            </CardTitle>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <Bot className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-base font-semibold">AI Analytics Assistant</CardTitle>
+                <p className="text-xs text-muted-foreground">Kuwait Reinsurance Company</p>
+              </div>
+            </div>
             <div className="flex gap-1">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsMinimized(!isMinimized)}
-                className="h-6 w-6 p-0"
+                className="h-8 w-8 p-0 hover:bg-muted"
               >
-                {isMinimized ? <Maximize2 className="h-3 w-3" /> : <Minimize2 className="h-3 w-3" />}
+                {isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsOpen(false)}
-                className="h-6 w-6 p-0"
+                className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
               >
-                <X className="h-3 w-3" />
+                <X className="h-4 w-4" />
               </Button>
             </div>
           </div>
@@ -204,120 +213,144 @@ export function ChatBot({ className }: ChatBotProps) {
             {/* Messages Container - Scrollable */}
             <div 
               ref={messagesContainerRef}
-              className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0 scroll-smooth"
-              style={{
-                scrollbarWidth: 'thin',
-                scrollbarColor: 'rgba(0, 0, 0, 0.2) transparent'
-              }}
+              className="flex-1 overflow-y-auto px-5 py-5 space-y-4 min-h-0"
             >
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex gap-3 items-start ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  {message.type === 'bot' && (
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Bot className="h-4 w-4 text-primary" />
-                    </div>
-                  )}
-                  <div
-                    className={`max-w-[75%] rounded-2xl px-4 py-2.5 shadow-sm ${
-                      message.type === 'user'
-                        ? 'bg-primary text-primary-foreground rounded-tr-sm'
-                        : 'bg-muted text-foreground rounded-tl-sm'
-                    }`}
+              <AnimatePresence>
+                {messages.map((message, index) => (
+                  <motion.div
+                    key={message.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2, delay: index === messages.length - 1 ? 0.1 : 0 }}
+                    className={`flex gap-3 items-start ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                      {message.content}
-                    </p>
-                    <p className={`text-xs mt-1.5 ${
-                      message.type === 'user' ? 'text-primary-foreground/70' : 'text-muted-foreground'
-                    }`}>
-                      {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-                  {message.type === 'user' && (
-                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                      <User className="h-4 w-4 text-primary" />
+                    {message.type === 'bot' && (
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center flex-shrink-0 border border-primary/20">
+                        <Bot className="h-4 w-4 text-primary" />
+                      </div>
+                    )}
+                    <div
+                      className={`max-w-[78%] rounded-2xl px-4 py-3 shadow-sm ${
+                        message.type === 'user'
+                          ? 'bg-primary text-primary-foreground rounded-tr-md'
+                          : 'bg-muted/80 text-foreground rounded-tl-md border border-border/50'
+                      }`}
+                    >
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                        {message.content}
+                      </p>
+                      <p className={`text-xs mt-2 opacity-70 ${
+                        message.type === 'user' ? 'text-primary-foreground/80' : 'text-muted-foreground'
+                      }`}>
+                        {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
                     </div>
-                  )}
-                </div>
-              ))}
+                    {message.type === 'user' && (
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/30 to-primary/20 flex items-center justify-center flex-shrink-0 border border-primary/30">
+                        <User className="h-4 w-4 text-primary" />
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
               
               {isTyping && (
-                <div className="flex gap-3 items-start justify-start">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex gap-3 items-start justify-start"
+                >
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center flex-shrink-0 border border-primary/20">
                     <Bot className="h-4 w-4 text-primary" />
                   </div>
-                  <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
-                    <div className="flex gap-1.5">
-                      <div className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }}></div>
-                      <div className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }}></div>
+                  <div className="bg-muted/80 rounded-2xl rounded-tl-md px-4 py-3 shadow-sm border border-border/50">
+                    <div className="flex gap-1.5 items-center">
+                      <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }}></div>
+                      <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }}></div>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               )}
               <div ref={messagesEndRef} />
             </div>
 
             {/* Input Section - Fixed at bottom */}
-            <div className="border-t bg-background/50 backdrop-blur-sm px-4 py-3 space-y-2">
+            <div className="border-t bg-gradient-to-t from-background to-background/95 backdrop-blur-sm px-5 py-4 space-y-3">
               {/* Quick Actions */}
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setInput('What is the current loss ratio?')}
-                  className="text-xs h-7 px-2.5"
+                  className="text-xs h-8 px-3 rounded-full border-border/50 hover:bg-primary/5 hover:border-primary/30 transition-all"
                 >
+                  <TrendingUp className="h-3 w-3 mr-1.5" />
                   Loss Ratio
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setInput('Top 5 brokers by premium')}
-                  className="text-xs h-7 px-2.5"
+                  onClick={() => setInput('Show me top 5 brokers by premium')}
+                  className="text-xs h-8 px-3 rounded-full border-border/50 hover:bg-primary/5 hover:border-primary/30 transition-all"
                 >
+                  <BarChart3 className="h-3 w-3 mr-1.5" />
                   Top Brokers
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setInput('Countries with policies')}
-                  className="text-xs h-7 px-2.5"
+                  onClick={() => setInput('Which countries have the most policies?')}
+                  className="text-xs h-8 px-3 rounded-full border-border/50 hover:bg-primary/5 hover:border-primary/30 transition-all"
                 >
+                  <Globe className="h-3 w-3 mr-1.5" />
                   Countries
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setInput('Explain combined ratio')}
-                  className="text-xs h-7 px-2.5"
+                  onClick={() => setInput('Explain the combined ratio and what it means')}
+                  className="text-xs h-8 px-3 rounded-full border-border/50 hover:bg-primary/5 hover:border-primary/30 transition-all"
                 >
+                  <Calculator className="h-3 w-3 mr-1.5" />
                   Combined Ratio
                 </Button>
               </div>
               
               {/* Input */}
-              <div className="flex gap-2">
-                <Input
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Type your message..."
-                  className="flex-1 text-sm h-10 rounded-lg border-2 focus:border-primary transition-colors"
-                />
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 relative">
+                  <Input
+                    ref={inputRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Ask about your data, metrics, or analysis..."
+                    className="w-full text-sm h-11 pr-12 rounded-xl border-2 border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all bg-background/50 backdrop-blur-sm"
+                    disabled={isTyping}
+                  />
+                  {isTyping && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
                 <Button
                   onClick={handleSendMessage}
                   disabled={!input.trim() || isTyping}
                   size="sm"
-                  className="h-10 px-4 rounded-lg"
+                  className="h-11 px-5 rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
                 >
-                  <Send className="h-4 w-4" />
+                  {isTyping ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
+              <p className="text-xs text-center text-muted-foreground">
+                Press Enter to send message
+              </p>
             </div>
           </CardContent>
         )}
