@@ -56,7 +56,7 @@ interface MonthlyOverviewData {
   };
 }
 
-export default function MonthlyOverviewPage() {
+export default function MonthlyOverviewPage(): JSX.Element {
   const { formatCurrency, formatCurrencyNumeric } = useFormatCurrency();
   const { isAdmin } = useUserRoles();
   const [data, setData] = useState<ReinsuranceData[]>([]);
