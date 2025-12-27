@@ -24,6 +24,12 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: false,
   },
   
+  // Experimental features to help with type checking
+  experimental: {
+    // Optimize package imports
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-select'],
+  },
+  
   // Security: Remove console logs in production
   ...(process.env.NODE_ENV === 'production' && {
     webpack: (config, { isServer }) => {
