@@ -4,8 +4,7 @@ import { filterByRole } from '@/lib/role-filter';
 import { loadUWData } from '@/lib/uw-data';
 import { aggregateKPIs } from '@/lib/kpi';
 import { logger } from '@/lib/utils/logger';
-import type { ReinsuranceData } from '@/lib/validation/schema';
-import type { KPIData } from '@/lib/validation/schema';
+import type { KPIData, ReinsuranceData } from '@/lib/validation/schema';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
