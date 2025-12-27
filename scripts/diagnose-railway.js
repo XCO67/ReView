@@ -10,6 +10,9 @@
  * 5. Network binding
  */
 
+// Load environment variables from .env file if it exists
+require('dotenv').config();
+
 const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
@@ -24,7 +27,11 @@ console.log('-'.repeat(60));
 const requiredVars = [
   'DATABASE_URL',
   'SESSION_SECRET',
-  'NODE_ENV',
+  'NODE_ENV'
+];
+
+// PORT and HOSTNAME are set by Railway automatically, so they're optional for local testing
+const railwayVars = [
   'PORT',
   'HOSTNAME'
 ];
@@ -59,6 +66,15 @@ requiredVars.forEach(varName => {
       displayValue = value;
     }
     console.log(`✅ ${varName}: ${displayValue}`);
+  }
+});
+
+railwayVars.forEach(varName => {
+  const value = process.env[varName];
+  if (value) {
+    console.log(`✅ ${varName}: ${value}`);
+  } else {
+    console.log(`ℹ️  ${varName}: Not set (Railway will set this automatically)`);
   }
 });
 
@@ -164,8 +180,8 @@ console.log('-'.repeat(60));
 const port = process.env.PORT || 3000;
 const hostname = process.env.HOSTNAME || '0.0.0.0';
 
-console.log(`✅ PORT: ${port}`);
-console.log(`✅ HOSTNAME: ${hostname}`);
+console.log(`✅ PORT: ${port} (default: 3000, Railway will override)`);
+console.log(`✅ HOSTNAME: ${hostname} (server.js hardcoded to 0.0.0.0)`);
 
 if (hostname !== '0.0.0.0' && hostname !== '::') {
   console.log('⚠️  WARNING: HOSTNAME should be "0.0.0.0" for Railway');
