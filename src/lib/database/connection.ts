@@ -22,8 +22,43 @@ let pool: Pool | null = null;
  * @throws {Error} If no valid database configuration is found
  */
 function getConnectionString(): string {
-  const connectionString = process.env.DATABASE_URL;
+  let connectionString = process.env.DATABASE_URL;
   if (connectionString) {
+    // Trim whitespace and remove quotes if present
+    connectionString = connectionString.trim();
+    
+    // Remove surrounding quotes if present
+    if ((connectionString.startsWith('"') && connectionString.endsWith('"')) ||
+        (connectionString.startsWith("'") && connectionString.endsWith("'"))) {
+      connectionString = connectionString.slice(1, -1);
+    }
+    
+    // Validate URL format
+    try {
+      const url = new URL(connectionString);
+      if (!url.hostname || url.hostname.length < 3) {
+        throw new Error(
+          `Invalid DATABASE_URL: hostname "${url.hostname}" is too short or missing. ` +
+          `Check your Railway environment variables - DATABASE_URL may be malformed. ` +
+          `Expected format: postgresql://user:password@hostname:port/database`
+        );
+      }
+      
+      // Log hostname in development for debugging
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('Database hostname:', url.hostname);
+      }
+    } catch (urlError) {
+      if (urlError instanceof TypeError) {
+        throw new Error(
+          `Invalid DATABASE_URL format: ${urlError.message}. ` +
+          `Check your Railway environment variables - DATABASE_URL may be malformed or have quotes around it. ` +
+          `Expected format: postgresql://user:password@hostname:port/database`
+        );
+      }
+      throw urlError;
+    }
+    
     // Validate that it's not pointing to localhost in production
     if ((process.env.NODE_ENV === 'production' || process.env.VERCEL) && connectionString.includes('localhost')) {
       throw new Error(
