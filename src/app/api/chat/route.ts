@@ -165,41 +165,153 @@ function buildDataContext(data: any[], kpis: any): string {
     return 'No data available in the system.';
   }
 
-  // Get unique values for context
+  // Aggregate data by broker
+  const brokerData = new Map<string, { premium: number; claims: number; policies: number }>();
+  data.forEach(record => {
+    const broker = record.broker || 'Unknown';
+    if (!brokerData.has(broker)) {
+      brokerData.set(broker, { premium: 0, claims: 0, policies: 0 });
+    }
+    const brokerStats = brokerData.get(broker)!;
+    brokerStats.premium += record.grsPremKD || 0;
+    brokerStats.claims += record.incClaimKD || 0;
+    brokerStats.policies += 1;
+  });
+  const topBrokers = Array.from(brokerData.entries())
+    .map(([name, stats]) => ({
+      name,
+      premium: stats.premium,
+      claims: stats.claims,
+      policies: stats.policies,
+      lossRatio: stats.premium > 0 ? (stats.claims / stats.premium) * 100 : 0
+    }))
+    .sort((a, b) => b.premium - a.premium)
+    .slice(0, 15);
+
+  // Aggregate data by cedant
+  const cedantData = new Map<string, { premium: number; claims: number; policies: number }>();
+  data.forEach(record => {
+    const cedant = record.cedant || 'Unknown';
+    if (!cedantData.has(cedant)) {
+      cedantData.set(cedant, { premium: 0, claims: 0, policies: 0 });
+    }
+    const cedantStats = cedantData.get(cedant)!;
+    cedantStats.premium += record.grsPremKD || 0;
+    cedantStats.claims += record.incClaimKD || 0;
+    cedantStats.policies += 1;
+  });
+  const topCedants = Array.from(cedantData.entries())
+    .map(([name, stats]) => ({
+      name,
+      premium: stats.premium,
+      claims: stats.claims,
+      policies: stats.policies,
+      lossRatio: stats.premium > 0 ? (stats.claims / stats.premium) * 100 : 0
+    }))
+    .sort((a, b) => b.premium - a.premium)
+    .slice(0, 15);
+
+  // Aggregate data by country
+  const countryData = new Map<string, { premium: number; claims: number; policies: number }>();
+  data.forEach(record => {
+    const country = record.countryName || 'Unknown';
+    if (!countryData.has(country)) {
+      countryData.set(country, { premium: 0, claims: 0, policies: 0 });
+    }
+    const countryStats = countryData.get(country)!;
+    countryStats.premium += record.grsPremKD || 0;
+    countryStats.claims += record.incClaimKD || 0;
+    countryStats.policies += 1;
+  });
+  const topCountries = Array.from(countryData.entries())
+    .map(([name, stats]) => ({
+      name,
+      premium: stats.premium,
+      claims: stats.claims,
+      policies: stats.policies,
+      lossRatio: stats.premium > 0 ? (stats.claims / stats.premium) * 100 : 0
+    }))
+    .sort((a, b) => b.premium - a.premium)
+    .slice(0, 20);
+
+  // Aggregate data by year
+  const yearData = new Map<number, { premium: number; claims: number; policies: number }>();
+  data.forEach(record => {
+    const year = record.inceptionYear;
+    if (!year) return;
+    if (!yearData.has(year)) {
+      yearData.set(year, { premium: 0, claims: 0, policies: 0 });
+    }
+    const yearStats = yearData.get(year)!;
+    yearStats.premium += record.grsPremKD || 0;
+    yearStats.claims += record.incClaimKD || 0;
+    yearStats.policies += 1;
+  });
+  const yearStats = Array.from(yearData.entries())
+    .map(([year, stats]) => ({
+      year,
+      premium: stats.premium,
+      claims: stats.claims,
+      policies: stats.policies,
+      lossRatio: stats.premium > 0 ? (stats.claims / stats.premium) * 100 : 0
+    }))
+    .sort((a, b) => b.year - a.year);
+
+  // Get unique lists
   const years = [...new Set(data.map(d => d.inceptionYear).filter(Boolean))].sort((a, b) => (b || 0) - (a || 0));
-  const brokers = [...new Set(data.map(d => d.broker).filter(Boolean))].slice(0, 10);
-  const cedants = [...new Set(data.map(d => d.cedant).filter(Boolean))].slice(0, 10);
-  const countries = [...new Set(data.map(d => d.countryName).filter(Boolean))].slice(0, 15);
   const regions = [...new Set(data.map(d => d.region).filter(Boolean))];
   const hubs = [...new Set(data.map(d => d.hub).filter(Boolean))];
-  const extTypes = [...new Set(data.map(d => d.extType).filter(Boolean))].slice(0, 10);
 
-  // Calculate some statistics
   const totalPolicies = data.length;
-  const avgPremium = totalPolicies > 0 ? kpis.premium / totalPolicies : 0;
-  const avgClaims = totalPolicies > 0 ? kpis.incurredClaims / totalPolicies : 0;
   const technicalResult = kpis.premium - kpis.incurredClaims - kpis.expense;
 
+  // Build broker summary
+  const brokerSummary = topBrokers.map(b => 
+    `${b.name}: ${b.premium.toLocaleString()} KD premium, ${b.policies} policies, ${b.lossRatio.toFixed(1)}% loss ratio`
+  ).join('\n');
+
+  // Build cedant summary
+  const cedantSummary = topCedants.map(c => 
+    `${c.name}: ${c.premium.toLocaleString()} KD premium, ${c.policies} policies, ${c.lossRatio.toFixed(1)}% loss ratio`
+  ).join('\n');
+
+  // Build country summary
+  const countrySummary = topCountries.map(c => 
+    `${c.name}: ${c.premium.toLocaleString()} KD premium, ${c.policies} policies, ${c.lossRatio.toFixed(1)}% loss ratio`
+  ).join('\n');
+
+  // Build year summary
+  const yearSummary = yearStats.map(y => 
+    `${y.year}: ${y.premium.toLocaleString()} KD premium, ${y.policies} policies, ${y.lossRatio.toFixed(1)}% loss ratio`
+  ).join('\n');
+
   return `
-DATA SUMMARY:
+TOTAL OVERVIEW:
 - Total Policies: ${totalPolicies.toLocaleString()}
-- Years Available: ${years.join(', ')}
-- Top Brokers: ${brokers.join(', ')}
-- Top Cedants: ${cedants.join(', ')}
-- Countries: ${countries.join(', ')}
+- Total Premium: ${kpis.premium.toLocaleString()} KD
+- Total Claims: ${kpis.incurredClaims.toLocaleString()} KD
+- Loss Ratio: ${kpis.lossRatio.toFixed(2)}%
+- Combined Ratio: ${kpis.combinedRatio.toFixed(2)}%
+- Technical Result: ${technicalResult.toLocaleString()} KD
+
+TOP BROKERS (by premium):
+${brokerSummary}
+
+TOP CEDANTS (by premium):
+${cedantSummary}
+
+TOP COUNTRIES (by premium):
+${countrySummary}
+
+YEARLY BREAKDOWN:
+${yearSummary}
+
+AVAILABLE FILTERS:
+- Years: ${years.join(', ')}
 - Regions: ${regions.join(', ')}
 - Hubs: ${hubs.join(', ')}
-- Extension Types: ${extTypes.join(', ')}
 
-KEY METRICS:
-- Loss Ratio: ${kpis.lossRatio.toFixed(2)}% ${kpis.lossRatio < 60 ? '(Excellent - below 60%)' : kpis.lossRatio < 80 ? '(Good - below 80%)' : '(Needs Attention - above 80%)'}
-- Acquisition Ratio: ${kpis.expenseRatio.toFixed(2)}%
-- Combined Ratio: ${kpis.combinedRatio.toFixed(2)}%
-- Technical Result: ${technicalResult.toLocaleString()} KD ${technicalResult > 0 ? '(Profitable)' : '(Loss)'}
-- Average Premium per Policy: ${avgPremium.toLocaleString()} KD
-- Average Claims per Policy: ${avgClaims.toLocaleString()} KD
-
-When users ask about specific data, you can reference these metrics and provide insights based on the available data.
+Use these exact numbers when answering questions. All amounts are in KD (Kuwaiti Dinar).
 `;
 }
 
