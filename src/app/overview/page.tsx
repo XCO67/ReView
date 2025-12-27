@@ -3,9 +3,9 @@
 import { useCallback, useMemo, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MonthlyOverviewContent } from '../monthly-overview/page';
-import { QuarterlyOverviewContent } from '../quarterly-overview/page';
-import { YearlyOverviewContent } from '../yearly-overview/page';
+import MonthlyOverviewPage from '../monthly-overview/page';
+import QuarterlyOverviewPage from '../quarterly-overview/page';
+import YearlyOverviewPage from '../yearly-overview/page';
 import { Badge } from '@/components/ui/badge';
 import { ChatBot } from '@/components/chat/ChatBot';
 
@@ -82,13 +82,13 @@ function OverviewHubContent() {
           </TabsList>
 
           <TabsContent value="monthly" className="space-y-6">
-            <MonthlyOverviewContent />
+            <MonthlyOverviewPage />
           </TabsContent>
           <TabsContent value="quarterly" className="space-y-6">
-            <QuarterlyOverviewContent hideChatBot />
+            <QuarterlyOverviewPage />
           </TabsContent>
           <TabsContent value="yearly" className="space-y-6">
-            <YearlyOverviewContent hideChatBot />
+            <YearlyOverviewPage />
           </TabsContent>
         </Tabs>
       </div>
