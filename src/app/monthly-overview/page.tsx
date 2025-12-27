@@ -1,6 +1,5 @@
 "use client";
 
-import type { Metadata } from "next";
 import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -56,7 +55,7 @@ interface MonthlyOverviewData {
   };
 }
 
-export default function MonthlyOverviewPage(): JSX.Element {
+export default function MonthlyOverviewPage() {
   const { formatCurrency, formatCurrencyNumeric } = useFormatCurrency();
   const { isAdmin } = useUserRoles();
   const [data, setData] = useState<ReinsuranceData[]>([]);
