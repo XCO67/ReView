@@ -20,9 +20,8 @@ EXPOSE 3000
 
 # Set environment
 ENV NODE_ENV=production
-# Railway sets PORT automatically, but default to 3000
-ENV PORT=${PORT:-3000}
-ENV HOSTNAME="0.0.0.0"
+ENV HOSTNAME=0.0.0.0
+# Railway will set PORT automatically at runtime
 
 # Start the application
 # Next.js automatically uses PORT env var and binds to 0.0.0.0

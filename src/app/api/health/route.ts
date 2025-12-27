@@ -1,23 +1,34 @@
-export const runtime = "nodejs";
+import { NextResponse } from 'next/server';
+import { getDb } from '@/lib/database/connection';
 
-import { NextResponse } from "next/server";
-
+/**
+ * Health check endpoint for Railway
+ * Returns status of the application and database connection
+ */
 export async function GET() {
+  const health = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'unknown',
+    port: process.env.PORT || '3000',
+    hostname: process.env.HOSTNAME || 'unknown',
+    checks: {
+      database: 'unknown',
+      sessionSecret: !!process.env.SESSION_SECRET,
+      databaseUrl: !!process.env.DATABASE_URL,
+    },
+  };
+
+  // Test database connection
   try {
-    return NextResponse.json({
-      status: 'healthy',
-      message: 'API server operational - database implementation removed',
-      timestamp: new Date().toISOString(),
-      database: 'removed',
-      ready_for: 'PostgreSQL implementation'
-    });
+    const db = getDb();
+    await db.query('SELECT 1');
+    health.checks.database = 'connected';
   } catch (error) {
-    console.error('Health check failed:', error);
-    return NextResponse.json({
-      status: 'error',
-      message: 'Health check failed',
-      timestamp: new Date().toISOString(),
-      error: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : String(error)) : undefined
-    }, { status: 500 });
+    health.status = 'degraded';
+    health.checks.database = `error: ${error instanceof Error ? error.message : 'unknown'}`;
   }
+
+  const statusCode = health.status === 'ok' ? 200 : 503;
+  return NextResponse.json(health, { status: statusCode });
 }

@@ -9,7 +9,8 @@ const dev = false; // Always production mode in Railway
 const hostname = '0.0.0.0';
 const port = parseInt(process.env.PORT || '3000', 10);
 
-const app = next({ dev, hostname, port });
+// Initialize Next.js app (don't pass hostname/port here - we handle that in our server)
+const app = next({ dev });
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
