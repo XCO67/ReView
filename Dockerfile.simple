@@ -15,14 +15,16 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Expose port
+# Expose port (Railway will set PORT env var)
 EXPOSE 3000
 
 # Set environment
 ENV NODE_ENV=production
-ENV PORT=3000
+# Railway sets PORT automatically, but default to 3000
+ENV PORT=${PORT:-3000}
 ENV HOSTNAME="0.0.0.0"
 
 # Start the application
+# Next.js automatically uses PORT env var and binds to 0.0.0.0
 CMD ["npm", "start"]
 
