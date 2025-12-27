@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
   // Security: Compress and optimize output
   compress: true,
   
+  // Output configuration for Docker
+  output: 'standalone',
+  
   // Security: Remove console logs in production
   ...(process.env.NODE_ENV === 'production' && {
     webpack: (config, { isServer }) => {
