@@ -37,6 +37,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+# Copy package files for production dependencies
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+
 # Copy necessary files from standalone build
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
@@ -50,6 +54,6 @@ EXPOSE 3000
 ENV PORT=${PORT:-3000}
 ENV HOSTNAME="0.0.0.0"
 
-# Use the server.js from standalone output
+# Use the server.js from standalone output (it should be in the root after copying standalone)
 CMD ["node", "server.js"]
 
