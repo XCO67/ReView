@@ -567,7 +567,10 @@ export default function RiskAssessmentTable({ initialData }: RiskAssessmentTable
                         if (col.key === 'input_impact' || col.key === 'inherent_frequency' || 
                             col.key === 'inherent_severity' || col.key === 'inherent_impact') {
                           const calculated = calculateDerivedValues(item);
-                          const calculatedValue = (calculated as Record<string, unknown>)[col.key] ?? getFieldValue(item, col.key);
+                          const calculatedValue = (calculated as Record<string, unknown>)[col.key];
+                          const displayValue = calculatedValue !== null && calculatedValue !== undefined 
+                            ? String(calculatedValue)
+                            : (getFieldValue(item, col.key) || '—');
                           return (
                             <TableCell
                               key={col.key}
@@ -575,7 +578,7 @@ export default function RiskAssessmentTable({ initialData }: RiskAssessmentTable
                               style={{ minWidth: col.width }}
                               title="Auto-calculated field"
                             >
-                              <span className="text-white/60 italic">{calculatedValue || '—'}</span>
+                              <span className="text-white/60 italic">{displayValue}</span>
                             </TableCell>
                           );
                         }
