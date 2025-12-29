@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     const query = message.toLowerCase().trim();
     let response = '';
-    let data: any = null;
+    let data: unknown = null;
 
     // Loss Ratio queries (with typo tolerance)
     if (fuzzyMatch(query, ['loss ratio', 'loss', 'ratio', 'lossratio', 'loos ratio', 'los ratio', 'lossratios'])) {

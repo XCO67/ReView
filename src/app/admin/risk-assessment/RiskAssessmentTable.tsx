@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import type { RiskControlAssessment } from '@/lib/database/queries';
-import { Save, X, Plus, Search, Trash2, Bell } from 'lucide-react';
+import { Save, X, Search, Trash2, Bell } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import PingModal from './PingModal';
 
@@ -87,7 +87,7 @@ export default function RiskAssessmentTable({ initialData }: RiskAssessmentTable
     return () => window.removeEventListener('addNewRow', handleAddNewEvent);
   }, []);
 
-  const handleCellClick = (riskId: string, field: string, currentValue: any) => {
+  const handleCellClick = (riskId: string, field: string, currentValue: unknown) => {
     setEditingCell({ riskId, field });
     setEditValue(currentValue?.toString() || '');
   };
@@ -100,7 +100,7 @@ export default function RiskAssessmentTable({ initialData }: RiskAssessmentTable
   const handleSave = async (riskId: string, field: string) => {
     setSaving(`${riskId}-${field}`);
     try {
-      const updateData: any = { [field]: editValue || null };
+      const updateData: Record<string, unknown> = { [field]: editValue || null };
       
       // If updating input_frequency or input_severity, recalculate derived values
       if (field === 'input_frequency' || field === 'input_severity') {
@@ -142,11 +142,6 @@ export default function RiskAssessmentTable({ initialData }: RiskAssessmentTable
     } finally {
       setSaving(null);
     }
-  };
-
-  const handleAddNew = () => {
-    setIsAddingNew(true);
-    setNewRowData({ risk_id: '' });
   };
 
   const handleCancelNew = () => {
@@ -259,7 +254,7 @@ export default function RiskAssessmentTable({ initialData }: RiskAssessmentTable
   };
 
   const getFieldValue = (item: RiskControlAssessment, field: string): string => {
-    const value = (item as any)[field];
+    const value = (item as Record<string, unknown>)[field];
     if (value === null || value === undefined) return '';
     if (value instanceof Date) {
       return value.toISOString().split('T')[0];
@@ -311,7 +306,7 @@ export default function RiskAssessmentTable({ initialData }: RiskAssessmentTable
     const isEditing = editingCell?.riskId === riskId && editingCell?.field === col.key;
     const isSaving = saving === `${riskId}-${col.key}`;
     const value = isNewRow 
-      ? (newRowData as any)[col.key]?.toString() || ''
+      ? (newRowData as Record<string, unknown>)[col.key]?.toString() || ''
       : getFieldValue(item as RiskControlAssessment, col.key);
 
     if (isNewRow) {
@@ -349,8 +344,6 @@ export default function RiskAssessmentTable({ initialData }: RiskAssessmentTable
                 if (col.key === 'input_frequency' || col.key === 'input_severity') {
                   const currentItem = data.find(item => item.risk_id === riskId);
                   if (currentItem) {
-                    const updatedItem = { ...currentItem, [col.key]: e.target.value };
-                    const calculated = calculateDerivedValues(updatedItem);
                     // Update the edit value to show calculated fields will change
                     // The actual save will handle the calculations
                   }
@@ -474,7 +467,7 @@ export default function RiskAssessmentTable({ initialData }: RiskAssessmentTable
                     </div>
                   </TableCell>
                   {columns.map((col) => {
-                    const value = (newRowData as any)[col.key]?.toString() || '';
+                    const value = (newRowData as Record<string, unknown>)[col.key]?.toString() || '';
                     const isCalculatedField = col.key === 'input_impact' || 
                                              col.key === 'inherent_frequency' || 
                                              col.key === 'inherent_severity' || 
@@ -483,7 +476,7 @@ export default function RiskAssessmentTable({ initialData }: RiskAssessmentTable
                     // Show calculated value for derived fields
                     if (isCalculatedField) {
                       const calculated = calculateDerivedValues(newRowData);
-                      const calculatedValue = (calculated as any)[col.key];
+                      const calculatedValue = (calculated as Record<string, unknown>)[col.key];
                       return (
                         <TableCell key={col.key} className="p-3 border-r border-white/10 bg-white/5">
                           <Input
@@ -529,7 +522,7 @@ export default function RiskAssessmentTable({ initialData }: RiskAssessmentTable
                   <TableCell colSpan={columns.length + 1} className="px-6 py-12 text-center text-white/60">
                     <div className="flex flex-col items-center gap-2">
                       <p className="text-sm">No risk assessment data found.</p>
-                      <p className="text-xs text-white/40">Click "Add New" to create a record or import CSV data.</p>
+                      <p className="text-xs text-white/40">Click &quot;Add New&quot; to create a record or import CSV data.</p>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -574,7 +567,7 @@ export default function RiskAssessmentTable({ initialData }: RiskAssessmentTable
                         if (col.key === 'input_impact' || col.key === 'inherent_frequency' || 
                             col.key === 'inherent_severity' || col.key === 'inherent_impact') {
                           const calculated = calculateDerivedValues(item);
-                          const calculatedValue = (calculated as any)[col.key] ?? getFieldValue(item, col.key);
+                          const calculatedValue = (calculated as Record<string, unknown>)[col.key] ?? getFieldValue(item, col.key);
                           return (
                             <TableCell
                               key={col.key}

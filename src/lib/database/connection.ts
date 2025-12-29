@@ -346,7 +346,7 @@ export async function initDb() {
 
   if (adminUsersResult.rows.length > 1) {
     const mainAdminId = adminUsersResult.rows[0].id;
-    const duplicateAdminIds = adminUsersResult.rows.slice(1).map((row: any) => row.id);
+    const duplicateAdminIds = adminUsersResult.rows.slice(1).map((row: { id: number }) => row.id);
     
     // Get admin role ID
     const adminRoleResult = await db.query(

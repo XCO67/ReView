@@ -24,7 +24,7 @@ export async function PUT(
     
     // Build update query dynamically based on provided fields
     const fields: string[] = [];
-    const values: any[] = [];
+    const values: unknown[] = [];
     let paramIndex = 1;
     
     const allowedFields = [

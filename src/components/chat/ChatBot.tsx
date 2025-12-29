@@ -24,7 +24,7 @@ interface Message {
   type: 'user' | 'bot';
   content: string;
   timestamp: Date;
-  data?: any;
+  data?: unknown;
 }
 
 interface ChatBotProps {

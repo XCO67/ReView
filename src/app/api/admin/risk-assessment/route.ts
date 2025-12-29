@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     // Build dynamic INSERT query based on provided fields
     const columns: string[] = [];
-    const values: any[] = [];
+    const values: unknown[] = [];
     const placeholders: string[] = [];
     let paramIndex = 1;
 

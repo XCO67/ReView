@@ -1,9 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/session';
 import { AdminSidebarNav, type AdminNavItem } from '@/components/admin/AdminSidebarNav';
-import { AdminHeaderActions } from '@/components/admin/AdminHeaderActions';
 import { AdminLayoutClient } from '@/components/admin/AdminLayoutClient';
-import Link from 'next/link';
 import { LogOut } from 'lucide-react';
 import { BrandLogo } from '@/components/BrandLogo';
 
