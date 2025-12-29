@@ -2,10 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { 
   MessageCircle, 
   Send, 
@@ -18,16 +16,15 @@ import {
   Loader2,
   TrendingUp,
   BarChart3,
-  Globe,
-  Calculator
+  FileText
 } from 'lucide-react';
-import { logger } from '@/lib/utils/logger';
 
 interface Message {
   id: string;
   type: 'user' | 'bot';
   content: string;
   timestamp: Date;
+  data?: any;
 }
 
 interface ChatBotProps {
@@ -42,33 +39,23 @@ export function ChatBot({ className }: ChatBotProps) {
     {
       id: '1',
       type: 'bot',
-      content: 'Hello! I\'m your Kuwait Re analytics assistant. I can help you analyze your reinsurance data, explain metrics, and answer questions about your dashboard.',
+      content: '👋 Hello! I\'m your **Kuwait Re AI Assistant**.\n\nI can help you analyze reinsurance data, explain metrics, and answer questions about your dashboard.\n\n*Try asking: "What\'s the loss ratio?" or "Show top brokers"*',
       timestamp: new Date()
     }
   ]);
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-scroll to bottom when new messages are added
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    }
+    scrollToBottom();
   }, [messages, isTyping]);
 
-  // Focus input when chat opens
-  useEffect(() => {
-    if (isOpen && !isMinimized) {
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 100);
-    }
-  }, [isOpen, isMinimized]);
-
   const handleSendMessage = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || isTyping) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -78,34 +65,18 @@ export function ChatBot({ className }: ChatBotProps) {
     };
 
     setMessages(prev => [...prev, userMessage]);
-    const currentInput = input.trim();
     setInput('');
     setIsTyping(true);
-    
-    // Keep input focused after sending
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 50);
 
     try {
-      // Call your API route
       const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: currentInput,
-          conversationHistory: messages.map(m => ({
-            role: m.type === 'user' ? 'user' : 'assistant',
-            content: m.content
-          }))
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: input.trim() }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to get response');
+        throw new Error('Failed to get response');
       }
 
       const data = await response.json();
@@ -113,19 +84,17 @@ export function ChatBot({ className }: ChatBotProps) {
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
-        content: data.response || 'I apologize, but I could not generate a response.',
+        content: data.response,
+        data: data.data,
         timestamp: new Date()
       };
       
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
-      logger.error('Chat error', error);
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
-        content: error instanceof Error 
-          ? `Sorry, I encountered an error: ${error.message}. Please try again.`
-          : 'Sorry, I encountered an error. Please try again.',
+        content: '⚠️ Sorry, I encountered an error. Please try again or rephrase your question.',
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -134,11 +103,35 @@ export function ChatBot({ className }: ChatBotProps) {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
+  };
+
+  const quickActions = [
+    { label: 'Loss Ratio', query: 'What is the loss ratio?' },
+    { label: 'Top Brokers', query: 'Show top brokers' },
+    { label: 'Premium', query: 'Total premium' },
+    { label: 'Claims', query: 'Claims summary' },
+  ];
+
+  const formatMessage = (content: string) => {
+    // Convert markdown-style formatting to HTML
+    const parts = content.split(/(\*\*.*?\*\*|\n|•)/g);
+    return parts.map((part, idx) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={idx} className="text-white font-semibold">{part.slice(2, -2)}</strong>;
+      }
+      if (part === '\n') {
+        return <br key={idx} />;
+      }
+      if (part === '•') {
+        return <span key={idx} className="inline-block mr-2">•</span>;
+      }
+      return <span key={idx}>{part}</span>;
+    });
   };
 
   if (!isOpen) {
@@ -147,11 +140,11 @@ export function ChatBot({ className }: ChatBotProps) {
         initial={{ opacity: 0, scale: 0.8, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.3, type: 'spring' }}
-        className={`fixed right-6 bottom-6 z-50 ${className}`}
+        className={`fixed bottom-6 right-6 z-50 ${className}`}
       >
         <Button
           onClick={() => setIsOpen(true)}
-          className="h-14 w-14 rounded-full shadow-2xl bg-primary hover:bg-primary/90 transition-all hover:scale-110"
+          className="h-14 w-14 rounded-full shadow-2xl bg-black border border-white/20 hover:bg-white/10 text-white hover:border-white/30 transition-all"
           size="icon"
         >
           <MessageCircle className="h-6 w-6" />
@@ -161,37 +154,24 @@ export function ChatBot({ className }: ChatBotProps) {
   }
 
   return (
-    <>
-      {/* Backdrop */}
-      <AnimatePresence>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
-          onClick={() => setIsOpen(false)}
-        />
-      </AnimatePresence>
-      
-      {/* Chat Window */}
+    <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, x: 100, scale: 0.95 }}
+        initial={{ opacity: 0, x: 20, scale: 0.95 }}
         animate={{ opacity: 1, x: 0, scale: 1 }}
-        exit={{ opacity: 0, x: 100, scale: 0.95 }}
-        transition={{ duration: 0.3, type: 'spring', damping: 25 }}
-        className={`fixed right-6 bottom-6 z-50 ${className} ${isMinimized ? 'w-80' : 'w-[420px]'} h-[600px]`}
+        exit={{ opacity: 0, x: 20, scale: 0.95 }}
+        transition={{ duration: 0.2 }}
+        className={`fixed bottom-6 right-6 z-50 ${isMinimized ? 'w-80' : 'w-96'} ${className}`}
       >
-        <Card className="h-full w-full flex flex-col shadow-2xl border border-border/50 bg-background/98 backdrop-blur-xl rounded-2xl overflow-hidden">
-        <CardHeader className="pb-3 pt-4 px-5 flex-shrink-0 border-b bg-gradient-to-r from-primary/5 to-primary/10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Bot className="h-5 w-5 text-primary" />
+        <div className="bg-gradient-to-br from-[#050505] via-[#070707] to-[#0a0a0a] rounded-2xl shadow-2xl border border-white/10 overflow-hidden flex flex-col h-[600px] backdrop-blur-xl">
+          {/* Header */}
+          <div className="px-4 py-3 bg-white/5 border-b border-white/10 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
+                <Bot className="h-4 w-4 text-white" />
               </div>
               <div>
-                <CardTitle className="text-base font-semibold">AI Analytics Assistant</CardTitle>
-                <p className="text-xs text-muted-foreground">Kuwait Reinsurance Company</p>
+                <h3 className="text-sm font-semibold text-white">AI Assistant</h3>
+                <p className="text-xs text-white/60">Kuwait Re Analytics</p>
               </div>
             </div>
             <div className="flex gap-1">
@@ -199,170 +179,140 @@ export function ChatBot({ className }: ChatBotProps) {
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsMinimized(!isMinimized)}
-                className="h-8 w-8 p-0 hover:bg-muted"
+                className="h-7 w-7 p-0 hover:bg-white/10 text-white/70"
               >
-                {isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+                {isMinimized ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsOpen(false)}
-                className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+                className="h-7 w-7 p-0 hover:bg-white/10 text-white/70"
               >
-                <X className="h-4 w-4" />
+                <X className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
-        </CardHeader>
-        
-        {!isMinimized && (
-          <CardContent className="flex flex-col h-full p-0 overflow-hidden">
-            {/* Messages Container - Scrollable */}
-            <div 
-              ref={messagesContainerRef}
-              className="flex-1 overflow-y-auto px-5 py-5 space-y-4 min-h-0 flex-shrink"
-            >
-              <AnimatePresence>
-                {messages.map((message, index) => (
+          
+          {!isMinimized && (
+            <>
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 custom-scrollbar">
+                <AnimatePresence>
+                  {messages.map((message, idx) => (
+                    <motion.div
+                      key={message.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.1 }}
+                      className={`flex gap-3 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      {message.type === 'bot' && (
+                        <div className="h-8 w-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0 mt-1">
+                          <Bot className="h-4 w-4 text-white" />
+                        </div>
+                      )}
+                      <div
+                        className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                          message.type === 'user'
+                            ? 'bg-white/10 text-white border border-white/20'
+                            : 'bg-white/5 text-white/90 border border-white/10'
+                        }`}
+                      >
+                        <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                          {formatMessage(message.content)}
+                        </div>
+                        {message.data && (
+                          <div className="mt-2 pt-2 border-t border-white/10">
+                            <div className="flex items-center gap-2 text-xs text-white/60">
+                              <TrendingUp className="h-3 w-3" />
+                              <span>Data from database</span>
+                            </div>
+                          </div>
+                        )}
+                        <p className="text-xs text-white/40 mt-2">
+                          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      {message.type === 'user' && (
+                        <div className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0 mt-1">
+                          <User className="h-4 w-4 text-white/70" />
+                        </div>
+                      )}
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+                
+                {/* Typing Indicator */}
+                {isTyping && (
                   <motion.div
-                    key={message.id}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2, delay: index === messages.length - 1 ? 0.1 : 0 }}
-                    className={`flex gap-3 items-start ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                    className="flex gap-3 justify-start"
                   >
-                    {message.type === 'bot' && (
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center flex-shrink-0 border border-primary/20">
-                        <Bot className="h-4 w-4 text-primary" />
-                      </div>
-                    )}
-                    <div
-                      className={`max-w-[78%] rounded-2xl px-4 py-3 shadow-sm ${
-                        message.type === 'user'
-                          ? 'bg-primary text-primary-foreground rounded-tr-md'
-                          : 'bg-muted/80 text-foreground rounded-tl-md border border-border/50'
-                      }`}
-                    >
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                        {message.content}
-                      </p>
-                      <p className={`text-xs mt-2 opacity-70 ${
-                        message.type === 'user' ? 'text-primary-foreground/80' : 'text-muted-foreground'
-                      }`}>
-                        {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
+                    <div className="h-8 w-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0 mt-1">
+                      <Bot className="h-4 w-4 text-white" />
                     </div>
-                    {message.type === 'user' && (
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/30 to-primary/20 flex items-center justify-center flex-shrink-0 border border-primary/30">
-                        <User className="h-4 w-4 text-primary" />
+                    <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 text-white/60 animate-spin" />
+                        <span className="text-sm text-white/60">Analyzing data...</span>
                       </div>
-                    )}
+                    </div>
                   </motion.div>
-                ))}
-              </AnimatePresence>
-              
-              {isTyping && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex gap-3 items-start justify-start"
-                >
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center flex-shrink-0 border border-primary/20">
-                    <Bot className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="bg-muted/80 rounded-2xl rounded-tl-md px-4 py-3 shadow-sm border border-border/50">
-                    <div className="flex gap-1.5 items-center">
-                      <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }}></div>
-                      <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }}></div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input Section - Fixed at bottom */}
-            <div className="flex-shrink-0 border-t bg-gradient-to-t from-background to-background/95 backdrop-blur-sm px-5 py-4 space-y-3">
-              {/* Quick Actions */}
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setInput('What is the current loss ratio?')}
-                  className="text-xs h-8 px-3 rounded-full border-border/50 hover:bg-primary/5 hover:border-primary/30 transition-all"
-                >
-                  <TrendingUp className="h-3 w-3 mr-1.5" />
-                  Loss Ratio
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setInput('Show me top 5 brokers by premium')}
-                  className="text-xs h-8 px-3 rounded-full border-border/50 hover:bg-primary/5 hover:border-primary/30 transition-all"
-                >
-                  <BarChart3 className="h-3 w-3 mr-1.5" />
-                  Top Brokers
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setInput('Which countries have the most policies?')}
-                  className="text-xs h-8 px-3 rounded-full border-border/50 hover:bg-primary/5 hover:border-primary/30 transition-all"
-                >
-                  <Globe className="h-3 w-3 mr-1.5" />
-                  Countries
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setInput('Explain the combined ratio and what it means')}
-                  className="text-xs h-8 px-3 rounded-full border-border/50 hover:bg-primary/5 hover:border-primary/30 transition-all"
-                >
-                  <Calculator className="h-3 w-3 mr-1.5" />
-                  Combined Ratio
-                </Button>
+                )}
+                <div ref={messagesEndRef} />
               </div>
-              
-              {/* Input */}
-              <div className="flex gap-2 items-end">
-                <div className="flex-1 relative">
+
+              {/* Quick Actions */}
+              <div className="px-4 py-2 border-t border-white/10 bg-white/5">
+                <div className="flex flex-wrap gap-2">
+                  {quickActions.map((action) => (
+                    <Button
+                      key={action.label}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setInput(action.query);
+                        setTimeout(() => handleSendMessage(), 100);
+                      }}
+                      disabled={isTyping}
+                      className="h-7 text-xs bg-white/5 hover:bg-white/10 text-white/70 border border-white/10 hover:border-white/20"
+                    >
+                      {action.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Input Section */}
+              <div className="px-4 py-3 border-t border-white/10 bg-white/5">
+                <div className="flex gap-2">
                   <Input
-                    ref={inputRef}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder="Ask about your data, metrics, or analysis..."
-                    className="w-full text-sm h-11 pr-12 rounded-xl border-2 border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all bg-background/50 backdrop-blur-sm"
+                    placeholder="Ask about your data..."
                     disabled={isTyping}
+                    className="flex-1 bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:ring-2 focus:ring-blue-500/50"
                   />
-                  {isTyping && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                    </div>
-                  )}
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={!input.trim() || isTyping}
+                    className="bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/30 px-4"
+                  >
+                    {isTyping ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                  </Button>
                 </div>
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={!input.trim() || isTyping}
-                  size="sm"
-                  className="h-11 px-5 rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
-                >
-                  {isTyping ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="h-4 w-4" />
-                  )}
-                </Button>
               </div>
-              <p className="text-xs text-center text-muted-foreground">
-                Press Enter to send message
-              </p>
-            </div>
-          </CardContent>
-        )}
-        </Card>
+            </>
+          )}
+        </div>
       </motion.div>
-    </>
+    </AnimatePresence>
   );
 }

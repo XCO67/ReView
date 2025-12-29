@@ -19,7 +19,8 @@ import { aggregateKPIs } from '@/lib/kpi';
 import { ChatBot } from '@/components/chat/ChatBot';
 import { ComparisonBarChart } from '@/components/charts/ComparisonBarChart';
 import { UniversalFilterState } from '@/components/filters/UniversalFilterPanel';
-import { TopFilterPanel } from '@/components/filters/TopFilterPanel';
+import { VisualizationFilterDialog } from '@/components/filters/VisualizationFilterDialog';
+import { FilterButton } from '@/components/filters/FilterDialog';
 import { useReinsuranceData } from '@/hooks/useReinsuranceData';
 import { DEFAULT_FILTER_STATE } from '@/lib/constants/filters';
 
@@ -36,6 +37,7 @@ export default function AnalyticsPage() {
 
   // Global Filters using UniversalFilterState
   const [filters, setFilters] = useState<UniversalFilterState>(DEFAULT_FILTER_STATE);
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
 
   // Comparison entities (max 8)
   const [comparisonEntities, setComparisonEntities] = useState<ComparisonEntity[]>([]);
@@ -157,6 +159,17 @@ export default function AnalyticsPage() {
       option.toLowerCase().includes(entitySearchTerm.toLowerCase())
     );
   }, [groupByOptions, entitySearchTerm]);
+
+  // Active filter count - must be called before any conditional returns
+  const activeFilterCount = useMemo(() => {
+    return Object.entries(filters)
+      .filter(([_, value]) => {
+        if (value === null || value === '') return false;
+        if (Array.isArray(value)) return value.length > 0;
+        return true;
+      })
+      .length;
+  }, [filters]);
 
   const groupByLabels: Record<string, { label: string; description: string }> = {
     'uy': { label: 'Underwriting Year', description: 'Compare by year' },
@@ -295,18 +308,47 @@ export default function AnalyticsPage() {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-background">
-        {/* Top Filter Panel with Comparison Entities */}
-        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border/50 shadow-sm">
-          <TopFilterPanel
-            data={data}
-            filters={filters}
-            onFiltersChange={setFilters}
-            onClearFilters={clearFilters}
+        <div className="container mx-auto px-4 py-8 pt-6">
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="mb-8"
           >
-            {/* Select Entities to Compare Section */}
-            <div className="space-y-4 w-full">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Select Entities to Compare</h3>
-            <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-4xl font-bold text-foreground mb-2 flex items-center gap-3">
+                  <GitCompare className="h-8 w-8 text-primary" />
+                  Comparative Analytics
+                </h1>
+              </div>
+              <div className="flex items-center gap-2">
+                <FilterButton
+                  onClick={() => setIsFilterDialogOpen(true)}
+                  activeFilterCount={activeFilterCount}
+                />
+                {isAdmin && comparisonData.length > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={exportToCSV}
+                    className="flex items-center gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export CSV
+                  </Button>
+                )}
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Comparison Entity Selection */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Select Entities to Compare</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 flex-1">
                   <label className="text-sm font-medium whitespace-nowrap">Group by:</label>
@@ -412,37 +454,8 @@ export default function AnalyticsPage() {
                 </div>
               )}
             </div>
-          </div>
-          </TopFilterPanel>
-        </div>
-
-        <div className="container mx-auto px-4 py-8 pt-6">
-          {/* Header */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mb-8"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-4xl font-bold text-foreground mb-2 flex items-center gap-3">
-                  <GitCompare className="h-8 w-8 text-primary" />
-                  Comparative Analytics
-                </h1>
-              </div>
-              {isAdmin && comparisonData.length > 0 && (
-                <Button
-                  variant="outline"
-                  onClick={exportToCSV}
-                  className="flex items-center gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Export CSV
-                </Button>
-              )}
-            </div>
-          </motion.div>
+            </CardContent>
+          </Card>
 
           {/* Comparison Results */}
           {comparisonData.length > 0 && (
@@ -805,6 +818,16 @@ export default function AnalyticsPage() {
           {/* ChatBot */}
           <ChatBot />
         </div>
+
+        {/* Filter Dialog */}
+        <VisualizationFilterDialog
+          open={isFilterDialogOpen}
+          onOpenChange={setIsFilterDialogOpen}
+          data={data}
+          filters={filters}
+          onFiltersChange={setFilters}
+          onClearFilters={clearFilters}
+        />
       </div>
     </TooltipProvider>
   );

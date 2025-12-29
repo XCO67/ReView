@@ -38,7 +38,8 @@ import { useUserRoles } from '@/hooks/useUserRoles';
 import { ReinsuranceData } from '@/lib/schema';
 import { ChatBot } from '@/components/chat/ChatBot';
 import { UniversalFilterState } from '@/components/filters/UniversalFilterPanel';
-import { TopFilterPanel } from '@/components/filters/TopFilterPanel';
+import { VisualizationFilterDialog } from '@/components/filters/VisualizationFilterDialog';
+import { FilterButton } from '@/components/filters/FilterDialog';
 import { logger } from '@/lib/utils/logger';type ClientType = 'broker' | 'cedant';
 
 // Normalized row interface according to spec
@@ -149,6 +150,7 @@ export default function ClientOverviewPage() {
     subClass: []
   });
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
 
   // Normalization function according to spec
   const normalizeData = (records: ReinsuranceData[]): NormalizedRow[] => {
@@ -615,6 +617,17 @@ export default function ClientOverviewPage() {
     });
   };
 
+  // Active filter count - must be called before any conditional returns
+  const activeFilterCount = useMemo(() => {
+    return Object.entries(universalFilters)
+      .filter(([_, value]) => {
+        if (value === null || value === '') return false;
+        if (Array.isArray(value)) return value.length > 0;
+        return true;
+      })
+      .length;
+  }, [universalFilters]);
+
 
   // Get color class for ratio metrics
   const getRatioColor = (value: number) => {
@@ -625,16 +638,6 @@ export default function ClientOverviewPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top Filter Panel */}
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border/50 shadow-sm">
-        <TopFilterPanel
-          data={rawData}
-          filters={universalFilters}
-          onFiltersChange={setUniversalFilters}
-          onClearFilters={clearFilters}
-        />
-      </div>
-
       {/* Fixed Header */}
       <div className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b">
         <div className="container mx-auto px-4 py-4">
@@ -652,8 +655,12 @@ export default function ClientOverviewPage() {
               )}
             </div>
 
-            {/* Right side - Mode Toggle & Timestamp */}
+            {/* Right side - Filter Button, Mode Toggle & Timestamp */}
             <div className="flex items-center space-x-4">
+              <FilterButton
+                onClick={() => setIsFilterDialogOpen(true)}
+                activeFilterCount={activeFilterCount}
+              />
               {/* Refresh Button */}
               <Button
                 variant="outline"
@@ -932,6 +939,16 @@ export default function ClientOverviewPage() {
 
       {/* ChatBot */}
       <ChatBot />
+
+      {/* Filter Dialog */}
+      <VisualizationFilterDialog
+        open={isFilterDialogOpen}
+        onOpenChange={setIsFilterDialogOpen}
+        data={rawData}
+        filters={universalFilters}
+        onFiltersChange={setUniversalFilters}
+        onClearFilters={clearFilters}
+      />
     </div>
   );
 }

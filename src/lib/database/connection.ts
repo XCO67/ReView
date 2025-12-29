@@ -230,6 +230,80 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at)
   `);
 
+  // Create notifications table
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS notifications (
+      id SERIAL PRIMARY KEY,
+      recipient_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      risk_id VARCHAR(20) REFERENCES risk_control_assessments(risk_id) ON DELETE SET NULL,
+      message TEXT NOT NULL,
+      message_type VARCHAR(50) NOT NULL,
+      is_read BOOLEAN DEFAULT false,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await db.query(`
+    CREATE INDEX IF NOT EXISTS idx_notifications_recipient_id ON notifications(recipient_id)
+  `);
+
+  await db.query(`
+    CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read)
+  `);
+
+  await db.query(`
+    CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at)
+  `);
+
+  // Create risk_control_assessments table
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS risk_control_assessments (
+      risk_id VARCHAR(20) PRIMARY KEY,
+      risk_item TEXT,
+      risk_description TEXT,
+      control_exist VARCHAR(10),
+      unit TEXT,
+      lob TEXT,
+      class TEXT,
+      risk_owner TEXT,
+      level_01 TEXT,
+      level_02 TEXT,
+      level_03 TEXT,
+      level_04 TEXT,
+      input_frequency INTEGER,
+      input_severity INTEGER,
+      input_impact INTEGER,
+      inherent_frequency INTEGER,
+      inherent_severity INTEGER,
+      inherent_impact INTEGER,
+      inherent_category TEXT,
+      no_of_controls INTEGER,
+      control_01 TEXT,
+      effect_c1 TEXT,
+      control_02 TEXT,
+      effect_c2 TEXT,
+      control_03 TEXT,
+      effect_c3 TEXT,
+      control_04 TEXT,
+      effect_c4 TEXT,
+      control_05 TEXT,
+      effect_c5 TEXT,
+      date_of_review DATE,
+      control_to_be_implemented TEXT,
+      due_date DATE,
+      residual_impact INTEGER,
+      residual_category TEXT,
+      risk_manager_remarks TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await db.query(`
+    CREATE INDEX IF NOT EXISTS idx_risk_control_assessments_risk_id ON risk_control_assessments(risk_id)
+  `);
+
   // Clean up old roles (viewer, developer, main-admin) and duplicate Super User roles
   await db.query(`
     DELETE FROM roles 
@@ -248,7 +322,7 @@ export async function initDb() {
     INSERT INTO roles (name, description) 
     VALUES 
       ('admin', 'Main Admin'),
-      ('Super User', 'Super User'),
+      ('Super User', 'Super User - Full dashboard access, no admin panel'),
       ('fi', 'Property (FI)'),
       ('eg', 'Energy (EG)'),
       ('ca', 'Cargo (CA)'),
@@ -259,6 +333,39 @@ export async function initDb() {
       ('li', 'Life (LI)')
     ON CONFLICT (name) DO NOTHING
   `);
+
+  // Clean up duplicate admin users - keep only the first one (by ID)
+  const adminUsersResult = await db.query(`
+    SELECT DISTINCT u.id
+    FROM users u
+    JOIN user_roles ur ON u.id = ur.user_id
+    JOIN roles r ON ur.role_id = r.id
+    WHERE LOWER(r.name) = 'admin'
+    ORDER BY u.id ASC
+  `);
+
+  if (adminUsersResult.rows.length > 1) {
+    const mainAdminId = adminUsersResult.rows[0].id;
+    const duplicateAdminIds = adminUsersResult.rows.slice(1).map((row: any) => row.id);
+    
+    // Get admin role ID
+    const adminRoleResult = await db.query(
+      "SELECT id FROM roles WHERE LOWER(name) = 'admin' LIMIT 1"
+    );
+    
+    if (adminRoleResult.rows.length > 0) {
+      const adminRoleId = adminRoleResult.rows[0].id;
+      
+      // Remove admin role from duplicate users
+      if (duplicateAdminIds.length > 0) {
+        await db.query(
+          `DELETE FROM user_roles 
+           WHERE user_id = ANY($1::int[]) AND role_id = $2`,
+          [duplicateAdminIds, adminRoleId]
+        );
+      }
+    }
+  }
 
   // Setup default admin will be done separately to ensure proper password hashing
 }

@@ -14,7 +14,8 @@ import { PremiumByExtTypeDonut } from '@/components/charts/PremiumByExtensionTyp
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { UniversalFilterState } from '@/components/filters/UniversalFilterPanel';
-import { TopFilterPanel } from '@/components/filters/TopFilterPanel';
+import { VisualizationFilterDialog } from '@/components/filters/VisualizationFilterDialog';
+import { FilterButton } from '@/components/filters/FilterDialog';
 import { useReinsuranceData } from '@/hooks/useReinsuranceData';
 import { DEFAULT_FILTER_STATE } from '@/lib/constants/filters';
 import { extractYear } from '@/lib/utils/date-helpers';
@@ -44,6 +45,7 @@ export default function VisualizationPage() {
 
   // Global Filters using UniversalFilterState
   const [filters, setFilters] = useState<UniversalFilterState>(DEFAULT_FILTER_STATE);
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
 
   // Clear filters function
   const clearFilters = () => {
@@ -112,6 +114,17 @@ export default function VisualizationPage() {
     });
   }, [data, filters]);
 
+  // Active filter count - must be called before any conditional returns
+  const activeFilterCount = useMemo(() => {
+    return Object.entries(filters)
+      .filter(([_, value]) => {
+        if (value === null || value === '') return false;
+        if (Array.isArray(value)) return value.length > 0;
+        return true;
+      })
+      .length;
+  }, [filters]);
+
   // Toggle chart visibility
   const toggleChart = (chartId: ChartType) => {
     setVisibleCharts(prev => {
@@ -168,24 +181,20 @@ export default function VisualizationPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top Filter Panel */}
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border/50 shadow-sm">
-        <TopFilterPanel
-          data={data}
-          filters={filters}
-          onFiltersChange={setFilters}
-          onClearFilters={clearFilters}
-        />
-      </div>
-
       <div className="container mx-auto px-4 py-8 pt-6">
         <div className="space-y-6">
           {/* Header */}
-          <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">Data Insights</h1>
-            <div className="mt-2">
-              <CurrencyLabel />
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground mb-2">Data Insights</h1>
+              <div className="mt-2">
+                <CurrencyLabel />
+              </div>
             </div>
+            <FilterButton
+              onClick={() => setIsFilterDialogOpen(true)}
+              activeFilterCount={activeFilterCount}
+            />
           </div>
 
           {/* Chrome-like Chart Tabs */}
@@ -301,6 +310,16 @@ export default function VisualizationPage() {
 
         </div>
       </div>
+
+      {/* Filter Dialog */}
+      <VisualizationFilterDialog
+        open={isFilterDialogOpen}
+        onOpenChange={setIsFilterDialogOpen}
+        data={data}
+        filters={filters}
+        onFiltersChange={setFilters}
+        onClearFilters={clearFilters}
+      />
     </div>
   );
 }

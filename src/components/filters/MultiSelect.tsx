@@ -85,10 +85,10 @@ export function MultiSelect({
     : `${value.length} selected`;
 
   return (
-    <div className="space-y-1.5" ref={containerRef}>
+    <div className="space-y-1.5 min-w-0 w-full" ref={containerRef}>
       <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
       
-      <div className="relative">
+      <div className="relative w-full">
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}

@@ -34,6 +34,9 @@ const ALL_ACCESS_ROLES = [...ADMIN_ROLES, SUPER_USER_ROLE, ...BUSINESS_ROLES];
  */
 const ROUTE_PERMISSIONS = [
   { path: '/admin', roles: ['admin'] }, // Only admin can access admin panel
+  { path: '/api/admin', roles: ['admin'] }, // All admin API routes
+  { path: '/api/notifications', roles: ALL_ACCESS_ROLES }, // Notifications accessible to all authenticated users
+  { path: '/api/chat', roles: ALL_ACCESS_ROLES }, // Chat API accessible to all authenticated users
   { path: '/world-map', roles: [...ADMIN_ROLES, SUPER_USER_ROLE, ...BUSINESS_ROLES] },
   { path: '/api/world-map', roles: [...ADMIN_ROLES, SUPER_USER_ROLE, ...BUSINESS_ROLES] },
   { path: '/dashboard', roles: ALL_ACCESS_ROLES },

@@ -343,7 +343,7 @@ export async function cleanupDuplicateRoles(): Promise<void> {
     // Ensure canonical Super User has correct description
     await db.query(`
       UPDATE roles 
-      SET description = 'Super User'
+      SET description = 'Super User - Full dashboard access, no admin panel'
       WHERE id = $1
     `, [canonicalId]);
     
@@ -456,5 +456,54 @@ export async function getActiveUserCounts(): Promise<{
     nonAdminCount,
     totalActive: adminCount + nonAdminCount,
   };
+}
+
+export interface RiskControlAssessment {
+  risk_id: string;
+  risk_item: string | null;
+  risk_description: string | null;
+  control_exist: string | null;
+  unit: string | null;
+  lob: string | null;
+  class: string | null;
+  risk_owner: string | null;
+  level_01: string | null;
+  level_02: string | null;
+  level_03: string | null;
+  level_04: string | null;
+  input_frequency: number | null;
+  input_severity: number | null;
+  input_impact: number | null;
+  inherent_frequency: number | null;
+  inherent_severity: number | null;
+  inherent_impact: number | null;
+  inherent_category: string | null;
+  no_of_controls: number | null;
+  control_01: string | null;
+  effect_c1: string | null;
+  control_02: string | null;
+  effect_c2: string | null;
+  control_03: string | null;
+  effect_c3: string | null;
+  control_04: string | null;
+  effect_c4: string | null;
+  control_05: string | null;
+  effect_c5: string | null;
+  date_of_review: Date | null;
+  control_to_be_implemented: string | null;
+  due_date: Date | null;
+  residual_impact: number | null;
+  residual_category: string | null;
+  risk_manager_remarks: string | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export async function getAllRiskAssessments(): Promise<RiskControlAssessment[]> {
+  const db = getDb();
+  const result = await db.query<RiskControlAssessment>(
+    `SELECT * FROM risk_control_assessments ORDER BY risk_id`
+  );
+  return result.rows;
 }
 

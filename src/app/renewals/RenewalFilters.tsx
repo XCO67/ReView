@@ -59,6 +59,7 @@ interface RenewalFiltersProps {
     loc?: string;
     extType?: string[];
   }) => void;
+  inDialog?: boolean;
 }
 
 export function RenewalFilters({ 
@@ -73,7 +74,8 @@ export function RenewalFilters({
   initialSrlSearch,
   initialLoc,
   filterOptions,
-  onChange 
+  onChange,
+  inDialog = false
 }: RenewalFiltersProps) {
   const [year, setYear] = useState<string | undefined>(initialYear);
   const [quarter, setQuarter] = useState(initialQuarter);
@@ -232,50 +234,59 @@ export function RenewalFilters({
   ].filter(v => v && (Array.isArray(v) ? v.length > 0 : true)).length;
 
   return (
-    <div className="container mx-auto px-4 py-2">
-      <div className="rounded-lg border bg-card">
-        {/* Header with Collapse Button */}
-        <div className="px-3 py-2 border-b">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity group"
-            >
-              <ChevronDown
-                className={cn(
-                  "h-4 w-4 text-muted-foreground transition-transform duration-200",
-                  isExpanded ? "rotate-180" : "rotate-0"
+    <div className={cn(
+      inDialog ? "" : "container mx-auto px-4 py-2"
+    )}>
+      <div className={cn(
+        inDialog ? "" : "rounded-lg border bg-card"
+      )}>
+        {/* Header with Collapse Button - Only show if not in dialog */}
+        {!inDialog && (
+          <div className="px-3 py-2 border-b">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity group"
+              >
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                    isExpanded ? "rotate-180" : "rotate-0"
+                  )}
+                />
+                <h2 className="text-sm font-semibold text-foreground">Filters</h2>
+                {activeFilterCount > 0 && (
+                  <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-primary/10 text-primary rounded-full">
+                    {activeFilterCount} Active
+                  </span>
                 )}
-              />
-              <h2 className="text-sm font-semibold text-foreground">Filters</h2>
-              {activeFilterCount > 0 && (
-                <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-primary/10 text-primary rounded-full">
-                  {activeFilterCount} Active
-                </span>
-              )}
-            </button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
-              onClick={resetFilters}
-            >
-              <X className="h-3 w-3 mr-1" />
-              Clear All
-            </Button>
+              </button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
+                onClick={resetFilters}
+              >
+                <X className="h-3 w-3 mr-1" />
+                Clear All
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Collapsible Content */}
         <div
           className={cn(
             "transition-all duration-300 ease-in-out",
-            isExpanded 
+            inDialog || isExpanded
               ? "max-h-[800px] opacity-100 overflow-y-auto overflow-x-hidden" 
               : "max-h-0 overflow-hidden opacity-0"
           )}
         >
-          <div className="p-3 space-y-5 relative">
+          <div className={cn(
+            "space-y-5 relative w-full",
+            inDialog ? "p-0" : "p-3"
+          )}>
             {/* Time Period Section */}
             <div className="space-y-0">
               <button
@@ -298,9 +309,12 @@ export function RenewalFilters({
                     : "max-h-0 opacity-0 overflow-hidden"
                 )}
               >
-                <div className="grid grid-cols-3 gap-3 pt-3">
+                <div className={cn(
+                  "grid gap-4 pt-3",
+                  inDialog ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-3"
+                )}>
                   {/* Year Filter */}
-                  <div className="space-y-2">
+                  <div className="space-y-2 min-w-0">
                     <label className="text-xs font-medium text-muted-foreground">Year</label>
                     <Select
                       value={year || 'all'}
@@ -310,7 +324,7 @@ export function RenewalFilters({
                         emitChange({ year: newYear });
                       }}
                     >
-                      <SelectTrigger className="h-9">
+                      <SelectTrigger className="h-9 w-full">
                         <SelectValue placeholder="Year" />
                       </SelectTrigger>
                       <SelectContent>
@@ -325,7 +339,7 @@ export function RenewalFilters({
                   </div>
 
                   {/* Month Name Filter */}
-                  <div className="space-y-2">
+                  <div className="space-y-2 min-w-0">
                     <label className="text-xs font-medium text-muted-foreground">Month</label>
                     <Select
                       value={monthName || 'all'}
@@ -341,7 +355,7 @@ export function RenewalFilters({
                         }
                       }}
                     >
-                      <SelectTrigger className="h-9">
+                      <SelectTrigger className="h-9 w-full">
                         <SelectValue placeholder="Month" />
                       </SelectTrigger>
                       <SelectContent>
@@ -356,14 +370,14 @@ export function RenewalFilters({
                   </div>
 
                   {/* Quarter Filter */}
-                  <div className="space-y-2">
+                  <div className="space-y-2 min-w-0">
                     <label className="text-xs font-medium text-muted-foreground">Quarter</label>
-                    <div className="flex gap-1.5">
+                    <div className="flex gap-1.5 flex-wrap">
                       <Button
                         variant={!quarter ? "default" : "outline"}
                         size="sm"
                         className={cn(
-                          "h-9 px-3 text-xs flex-1",
+                          "h-9 px-3 text-xs",
                           monthName ? "opacity-50 cursor-not-allowed" : ""
                         )}
                         onClick={() => {
@@ -431,13 +445,13 @@ export function RenewalFilters({
                     : "max-h-0 opacity-0 overflow-hidden"
                 )}
               >
-                <div className="flex gap-2 pt-3">
+                <div className="flex gap-2 pt-3 flex-wrap">
                   {STATUS_OPTIONS.map((option) => (
                     <Button
                       key={option.value}
                       variant={status === option.value ? "default" : "outline"}
                       size="sm"
-                      className="h-9 px-4 text-xs flex-1"
+                      className="h-9 px-4 text-xs flex-1 min-w-[120px]"
                       onClick={() => {
                         const nextStatus = status === option.value ? undefined : option.value;
                         setStatus(nextStatus);
@@ -473,15 +487,20 @@ export function RenewalFilters({
                     : "max-h-0 opacity-0 overflow-hidden"
                 )}
               >
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 pt-3">
+                <div className={cn(
+                  "grid gap-4 pt-3",
+                  inDialog 
+                    ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" 
+                    : "grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
+                )}>
                   {/* Source Filter (HO/FERO) */}
-                  <div className="space-y-2">
+                  <div className="space-y-2 min-w-0">
                     <label className="text-xs font-medium text-muted-foreground">Office</label>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       <Button
                         variant={!loc ? "default" : "outline"}
                         size="sm"
-                        className="h-9 px-3 text-xs flex-1"
+                        className="h-9 px-3 text-xs"
                         onClick={() => {
                           setLoc(undefined);
                           emitChange({ loc: undefined });
@@ -494,7 +513,7 @@ export function RenewalFilters({
                           key={locOption}
                           variant={loc === locOption ? "default" : "outline"}
                           size="sm"
-                          className="h-9 px-3 text-xs flex-1"
+                          className="h-9 px-3 text-xs"
                           onClick={() => {
                             const next = loc === locOption ? undefined : locOption;
                             setLoc(next);
@@ -508,58 +527,66 @@ export function RenewalFilters({
                   </div>
 
                   {/* Policy Nature */}
-                  <MultiSelect
-                    label="Policy Nature"
-                    value={businessType}
-                    options={filterOptions.businessTypes}
-                    onChange={(val) => {
-                      setBusinessType(val);
-                      emitChange({ businessType: val });
-                    }}
-                  />
-
-                  {/* Extract Type Filter */}
-                  <MultiSelect
-                    label="Extract Type"
-                    value={extType}
-                    options={filterOptions.extTypes || []}
-                    onChange={(val) => {
-                      setExtType(val);
-                      emitChange({ extType: val });
-                    }}
-                  />
-
-                  {/* Class Filter */}
-                  <MultiSelect
-                    label="Class"
-                    value={className}
-                    options={filterOptions.classes}
-                    onChange={(val) => {
-                      setClassName(val);
-                      setSubClass([]);
-                      emitChange({ className: val, subClass: [] });
-                    }}
-                  />
-
-                  {/* Subclass Filter */}
-                  {className.length > 0 ? (
+                  <div className="min-w-0">
                     <MultiSelect
-                      label="Subclass"
-                      value={subClass}
-                      options={dynamicFilterOptions.subClasses || []}
+                      label="Policy Nature"
+                      value={businessType}
+                      options={filterOptions.businessTypes}
                       onChange={(val) => {
-                        setSubClass(val);
-                        emitChange({ subClass: val });
+                        setBusinessType(val);
+                        emitChange({ businessType: val });
                       }}
                     />
-                  ) : (
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-muted-foreground">Subclass</label>
-                      <div className="h-9 flex items-center text-sm text-muted-foreground px-3 border border-border rounded-md bg-muted/50">
-                        Select class first
+                  </div>
+
+                  {/* Extract Type Filter */}
+                  <div className="min-w-0">
+                    <MultiSelect
+                      label="Extract Type"
+                      value={extType}
+                      options={filterOptions.extTypes || []}
+                      onChange={(val) => {
+                        setExtType(val);
+                        emitChange({ extType: val });
+                      }}
+                    />
+                  </div>
+
+                  {/* Class Filter */}
+                  <div className="min-w-0">
+                    <MultiSelect
+                      label="Class"
+                      value={className}
+                      options={filterOptions.classes}
+                      onChange={(val) => {
+                        setClassName(val);
+                        setSubClass([]);
+                        emitChange({ className: val, subClass: [] });
+                      }}
+                    />
+                  </div>
+
+                  {/* Subclass Filter */}
+                  <div className="min-w-0">
+                    {className.length > 0 ? (
+                      <MultiSelect
+                        label="Subclass"
+                        value={subClass}
+                        options={dynamicFilterOptions.subClasses || []}
+                        onChange={(val) => {
+                          setSubClass(val);
+                          emitChange({ subClass: val });
+                        }}
+                      />
+                    ) : (
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-muted-foreground">Subclass</label>
+                        <div className="h-9 flex items-center text-sm text-muted-foreground px-3 border border-border rounded-md bg-muted/50">
+                          Select class first
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -586,16 +613,21 @@ export function RenewalFilters({
                     : "max-h-0 opacity-0 overflow-hidden"
                 )}
               >
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3">
-                  <MultiSelect
-                    label="Country"
-                    value={country}
-                    options={filterOptions.countries}
-                    onChange={(val) => {
-                      setCountry(val);
-                      emitChange({ country: val });
-                    }}
-                  />
+                <div className={cn(
+                  "grid gap-3 pt-3",
+                  inDialog ? "grid-cols-1" : "grid-cols-1 md:grid-cols-3"
+                )}>
+                  <div className="min-w-0 w-full">
+                    <MultiSelect
+                      label="Country"
+                      value={country}
+                      options={filterOptions.countries}
+                      onChange={(val) => {
+                        setCountry(val);
+                        emitChange({ country: val });
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -622,8 +654,11 @@ export function RenewalFilters({
                     : "max-h-0 opacity-0 overflow-hidden"
                 )}
               >
-                <div className="grid grid-cols-2 gap-3 pt-3">
-                  <div className="space-y-2">
+                <div className={cn(
+                  "grid gap-3 pt-3",
+                  inDialog ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-2"
+                )}>
+                  <div className="space-y-2 min-w-0">
                     <label className="text-xs font-medium text-muted-foreground">Country Search</label>
                     <input
                       type="text"
@@ -652,7 +687,7 @@ export function RenewalFilters({
                       className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 min-w-0">
                     <label className="text-xs font-medium text-muted-foreground">SRL Search</label>
                     <input
                       type="text"

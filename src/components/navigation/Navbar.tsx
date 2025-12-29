@@ -41,6 +41,7 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { isAdmin, getRoleDisplayName, getPrimaryRole, getRoleDashboardDescription } from "@/lib/role-filter";
 import { logger } from '@/lib/utils/logger';
+import { NotificationCenter } from './NotificationCenter';
 
 const navigation = [
   { name: "Renewals", href: "/renewals", icon: RefreshCw },
@@ -405,6 +406,10 @@ export function Navbar() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            
+            {/* Notification Center */}
+            <NotificationCenter />
+
             {/* Currency Toggle */}
             <Tooltip>
               <TooltipTrigger asChild>

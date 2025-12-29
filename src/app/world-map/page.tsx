@@ -23,7 +23,8 @@ import { CurrencyLabel } from '@/components/currency/CurrencyLabel';
 import { ChatBot } from '@/components/chat/ChatBot';
 import WorldMap, { BaseCountryData } from '@/components/charts/WorldMap';
 import { UniversalFilterState } from '@/components/filters/UniversalFilterPanel';
-import { TopFilterPanel } from '@/components/filters/TopFilterPanel';
+import { VisualizationFilterDialog } from '@/components/filters/VisualizationFilterDialog';
+import { FilterButton } from '@/components/filters/FilterDialog';
 import { ReinsuranceData } from '@/lib/schema';
 import { logger } from '@/lib/utils/logger';interface CountryData extends BaseCountryData {
   records?: CountryDetailRecord[];
@@ -112,6 +113,7 @@ export default function WorldMapPage() {
     cedant: null,
     policyName: null,
   });
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
 
   const selectedYear = useMemo(() => {
     if (selectedYearIndex === null) return null;
@@ -465,19 +467,19 @@ const displayedCountries = useMemo(() => {
     return Math.max(...worldData.countries.map(c => c.policyCount), 1);
   }, [worldData]);
 
+  const activeFilterCount = useMemo(() => {
+    return Object.entries(filters)
+      .filter(([_, value]) => {
+        if (value === null || value === '') return false;
+        if (Array.isArray(value)) return value.length > 0;
+        return true;
+      })
+      .length;
+  }, [filters]);
+
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-background" style={{ scrollBehavior: 'smooth' }}>
-        {/* Top Filter Panel */}
-        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border/50 shadow-sm">
-          <TopFilterPanel
-            data={allData}
-            filters={filters}
-            onFiltersChange={setFilters}
-            onClearFilters={clearFilters}
-          />
-        </div>
-
         {/* Header */}
         <div className="bg-background border-b">
           <div className="container mx-auto px-4 py-4">
@@ -494,6 +496,10 @@ const displayedCountries = useMemo(() => {
                   <p className="text-sm text-muted-foreground">Global reinsurance coverage visualization</p>
                 </div>
               </div>
+              <FilterButton
+                onClick={() => setIsFilterDialogOpen(true)}
+                activeFilterCount={activeFilterCount}
+              />
 
               <div className="flex items-center gap-3">
                 <Tooltip>
@@ -1075,6 +1081,16 @@ const displayedCountries = useMemo(() => {
         {/* ChatBot */}
         <ChatBot />
       </div>
+
+      {/* Filter Dialog */}
+      <VisualizationFilterDialog
+        open={isFilterDialogOpen}
+        onOpenChange={setIsFilterDialogOpen}
+        data={allData}
+        filters={filters}
+        onFiltersChange={setFilters}
+        onClearFilters={clearFilters}
+      />
     </TooltipProvider>
   );
 }

@@ -2,7 +2,8 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { SideFilterPanel } from '@/components/filters/SideFilterPanel';
+import { DashboardFilterDialog } from '@/components/filters/DashboardFilterDialog';
+import { FilterButton } from '@/components/filters/FilterDialog';
 import { ChatBot } from '@/components/chat/ChatBot';
 import { KpiStrip } from '@/components/kpi/KPICard';
 import { UyPerformanceTable } from '@/components/tables/UnderwritingYearPerformanceTable';
@@ -41,7 +42,7 @@ export default function DashboardPage() {
     showMonthly: false,
     showQuarterly: false,
   });
-  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
 
   // Build filter params for API
   const filterParams = useMemo(() => {
@@ -118,18 +119,18 @@ export default function DashboardPage() {
     return calculateUYPerformanceTotals(uyPerformance);
   }, [uyPerformance]);
 
+  const activeFilterCount = useMemo(() => {
+    return Object.entries(filters)
+      .filter(([key, value]) => 
+        key !== 'showMonthly' && 
+        key !== 'showQuarterly' && 
+        value !== null && 
+        value !== ''
+      ).length;
+  }, [filters]);
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Side Filter Panel */}
-      <SideFilterPanel
-        isOpen={isFilterPanelOpen}
-        onToggle={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-        data={data}
-        filters={filters}
-        onFiltersChange={setFilters}
-        onClearFilters={clearFilters}
-      />
-
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <motion.div
@@ -144,24 +145,10 @@ export default function DashboardPage() {
                 General Overview
               </h1>
             </div>
-            {Object.entries(filters).some(([key, value]) => 
-              key !== 'showMonthly' && 
-              key !== 'showQuarterly' && 
-              value !== null && 
-              value !== ''
-            ) && (
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">Active Filters</p>
-                <p className="text-lg font-semibold text-foreground">
-                  {Object.entries(filters).filter(([key, value]) => 
-                    key !== 'showMonthly' && 
-                    key !== 'showQuarterly' && 
-                    value !== null && 
-                    value !== ''
-                  ).length} applied
-                </p>
-              </div>
-            )}
+            <FilterButton
+              onClick={() => setIsFilterDialogOpen(true)}
+              activeFilterCount={activeFilterCount}
+            />
           </div>
         </motion.div>
 
@@ -269,6 +256,16 @@ export default function DashboardPage() {
         {/* ChatBot */}
         <ChatBot />
       </div>
+
+      {/* Filter Dialog */}
+      <DashboardFilterDialog
+        open={isFilterDialogOpen}
+        onOpenChange={setIsFilterDialogOpen}
+        data={data}
+        filters={filters}
+        onFiltersChange={setFilters}
+        onClearFilters={clearFilters}
+      />
     </div>
   );
 }

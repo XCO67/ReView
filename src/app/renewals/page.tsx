@@ -43,14 +43,6 @@ export default async function RenewalsPage() {
   return (
     <div className="bg-[#050505] text-white min-h-screen">
       <div className="mx-auto max-w-[95%] xl:max-w-[1600px] px-4 py-10">
-        <header className="mb-8">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-3xl font-semibold">Renewals Book</h1>
-            </div>
-          </div>
-        </header>
-
         <RenewalFiltersClient
           initialYear={initialYear}
           initialQuarter={initialQuarter}

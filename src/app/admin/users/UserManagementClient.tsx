@@ -218,24 +218,31 @@ export default function UserManagementClient({ initialUsers, roles }: UserManage
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <div className="space-y-3 text-sm">
                   {roles
-  .filter((role) => allowedRoles.has(role.name.toLowerCase()))
-  .sort((a, b) => a.name.localeCompare(b.name))
-  .map((role) => (
-                    <label key={role.id} className="flex items-start gap-3">
+                    .filter((role) => allowedRoles.has(role.name.toLowerCase()))
+                    .sort((a, b) => {
+                      // Sort: admin first, then Super User, then business roles
+                      if (a.name.toLowerCase() === 'admin') return -1;
+                      if (b.name.toLowerCase() === 'admin') return 1;
+                      if (a.name.toLowerCase() === 'super user') return -1;
+                      if (b.name.toLowerCase() === 'super user') return 1;
+                      return a.name.localeCompare(b.name);
+                    })
+                    .map((role) => (
+                    <label key={role.id} className="flex items-start gap-3 cursor-pointer hover:bg-white/5 p-2 rounded transition-colors">
                       <input
                         type="checkbox"
                         checked={formData.role_ids.includes(role.id)}
                         onChange={() => toggleRole(role.id)}
-                        className="mt-1 h-4 w-4 rounded border-white/30 bg-transparent text-white focus:ring-white/40"
+                        className="mt-1 h-4 w-4 rounded border-white/30 bg-transparent text-white focus:ring-white/40 cursor-pointer"
                       />
-                      <span>
-                          <span className="font-semibold text-white">
-                            {role.description || role.name}
-                          </span>
-                          <span className="text-xs uppercase tracking-wide text-white/40">
-                            {role.name}
-                          </span>
-                      </span>
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-white text-sm">
+                          {role.description || role.name}
+                        </span>
+                        <span className="text-xs uppercase tracking-wide text-white/40 mt-0.5">
+                          {role.name}
+                        </span>
+                      </div>
                     </label>
                   ))}
                 </div>

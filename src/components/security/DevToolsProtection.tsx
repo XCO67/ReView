@@ -67,7 +67,7 @@ export function DevToolsProtection() {
         if (widthThreshold || heightThreshold) {
           if (!devToolsOpen) {
             devToolsOpen = true;
-            // Security warning - intentional console usage for dev tools detection
+            // Optionally redirect or show warning
             console.clear();
             console.log('%c⚠️ Security Warning', 'color: red; font-size: 20px; font-weight: bold;');
             console.log('%cUnauthorized access detected. This action has been logged.', 'color: red; font-size: 14px;');
@@ -84,7 +84,7 @@ export function DevToolsProtection() {
       // Monitor for dev tools
       setInterval(detectDevTools, 500);
 
-      // Clear console periodically (intentional console usage for security)
+      // Clear console periodically
       const clearConsole = setInterval(() => {
         if (devToolsOpen) {
           console.clear();

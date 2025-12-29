@@ -15,7 +15,8 @@ import { CurrencyLabel } from '@/components/currency/CurrencyLabel';
 import { formatPct } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { UniversalFilterState } from '@/components/filters/UniversalFilterPanel';
-import { TopFilterPanel } from '@/components/filters/TopFilterPanel';
+import { VisualizationFilterDialog } from '@/components/filters/VisualizationFilterDialog';
+import { FilterButton } from '@/components/filters/FilterDialog';
 import { ReinsuranceData } from '@/lib/schema';
 import { logger } from '@/lib/utils/logger';interface PolicyPerformanceRecord {
   policyName: string;
@@ -73,6 +74,7 @@ export default function PerformancePage() {
     cedant: null,
     policyName: null,
   });
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
 
   // Load all data for filter options
   useEffect(() => {
@@ -409,43 +411,69 @@ export default function PerformancePage() {
     return 'default';
   };
 
+  // Active filter count - must be called before any conditional returns
+  const activeFilterCount = useMemo(() => {
+    return Object.entries(filters)
+      .filter(([_, value]) => {
+        if (value === null || value === '') return false;
+        if (Array.isArray(value)) return value.length > 0;
+        return true;
+      })
+      .length;
+  }, [filters]);
+
+  const clearAllFilters = () => {
+    setFilters({
+      office: null,
+      extType: null,
+      policyNature: null,
+      class: null,
+      subClass: null,
+      hub: null,
+      region: null,
+      country: null,
+      year: null,
+      month: null,
+      quarter: null,
+      broker: null,
+      cedant: null,
+      policyName: null,
+    });
+    setSelectedEntity('');
+    setSelectedYears([]);
+    setPolicyFilter('all');
+    setSearchTerm('');
+    setPolicySearchTerm('');
+    setBrokersForSelectedPolicy([]);
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Top Filter Panel with Entity Selection */}
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border/50 shadow-sm">
-        <TopFilterPanel
-          data={allData}
-          filters={filters}
-          onFiltersChange={setFilters}
-          onClearFilters={() => {
-          setFilters({
-            office: null,
-            extType: null,
-            policyNature: null,
-            class: null,
-            subClass: null,
-            hub: null,
-            region: null,
-            country: null,
-            year: null,
-            month: null,
-            quarter: null,
-            broker: null,
-            cedant: null,
-            policyName: null,
-          });
-          setSelectedEntity('');
-          setSelectedYears([]);
-          setPolicyFilter('all');
-          setSearchTerm('');
-          setPolicySearchTerm('');
-          setBrokersForSelectedPolicy([]);
-        }}
-      >
-        {/* Entity Selection Section */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Entity Selection</h3>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="container mx-auto px-4 py-8 pt-6">
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold text-foreground mb-2">
+                Performance Analysis
+              </h1>
+              <div className="mt-2">
+                <CurrencyLabel />
+              </div>
+            </div>
+            <FilterButton
+              onClick={() => setIsFilterDialogOpen(true)}
+              activeFilterCount={activeFilterCount}
+            />
+          </div>
+
+          {/* Entity Selection Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Entity Selection</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {/* Business Source */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Business Source</label>
@@ -784,22 +812,9 @@ export default function PerformancePage() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      </TopFilterPanel>
-      </div>
-
-      <div className="container mx-auto px-4 py-8 pt-6">
-        <div className="space-y-6">
-          {/* Header */}
-          <div>
-            <h1 className="text-4xl font-bold text-foreground mb-2">
-              Performance Analysis
-            </h1>
-            <div className="mt-2">
-              <CurrencyLabel />
-            </div>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Performance Data - Horizontal Table with Year Sections */}
           {isLoading ? (
@@ -928,6 +943,16 @@ export default function PerformancePage() {
           )}
         </div>
       </div>
+
+      {/* Filter Dialog */}
+      <VisualizationFilterDialog
+        open={isFilterDialogOpen}
+        onOpenChange={setIsFilterDialogOpen}
+        data={allData}
+        filters={filters}
+        onFiltersChange={setFilters}
+        onClearFilters={clearAllFilters}
+      />
     </div>
   );
 }

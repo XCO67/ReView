@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { RenewalFilters } from "./RenewalFilters";
+import { FilterDialog, FilterButton } from "@/components/filters/FilterDialog";
 import type { RenewalSummary, RenewalFilterOptions } from "@/lib/renewals";
 import { RenewalSummaryGrid } from "./renewal-summary-grid";
 import { RenewalTable } from "./RenewalTable";
@@ -37,6 +38,50 @@ export function RenewalFiltersClient({
 }: RenewalFiltersClientProps) {
   const [summary, setSummary] = useState<RenewalSummary>(initialSummary);
   const [loading, setLoading] = useState(false);
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
+  const [currentFilters, setCurrentFilters] = useState<{
+    year?: string;
+    quarter?: string;
+    status?: 'renewed' | 'not-renewed' | 'upcoming-renewal';
+    monthName?: string;
+    country?: string[];
+    countrySearch?: string;
+    srlSearch?: string;
+    businessType?: string[];
+    className?: string[];
+    subClass?: string[];
+    loc?: string;
+    extType?: string[];
+  }>({
+    year: initialYear,
+    quarter: initialQuarter,
+    status: initialStatus,
+    monthName: initialMonthName,
+    country: initialCountry ? [initialCountry] : undefined,
+    countrySearch: initialCountrySearch,
+    srlSearch: initialSrlSearch,
+    businessType: initialBusinessType ? [initialBusinessType] : undefined,
+    className: initialClassName ? [initialClassName] : undefined,
+    loc: initialLoc,
+  });
+
+  // Calculate active filter count
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (currentFilters.year) count++;
+    if (currentFilters.quarter) count++;
+    if (currentFilters.status) count++;
+    if (currentFilters.monthName) count++;
+    if (currentFilters.country && currentFilters.country.length > 0) count++;
+    if (currentFilters.countrySearch && currentFilters.countrySearch.trim()) count++;
+    if (currentFilters.srlSearch && currentFilters.srlSearch.trim()) count++;
+    if (currentFilters.businessType && currentFilters.businessType.length > 0) count++;
+    if (currentFilters.className && currentFilters.className.length > 0) count++;
+    if (currentFilters.subClass && currentFilters.subClass.length > 0) count++;
+    if (currentFilters.loc) count++;
+    if (currentFilters.extType && currentFilters.extType.length > 0) count++;
+    return count;
+  }, [currentFilters]);
 
   const fetchSummary = async (filters: { 
     year?: string; 
@@ -98,6 +143,7 @@ export function RenewalFiltersClient({
       }
       
       setSummary(data);
+      setCurrentFilters(filters);
     } catch (error) {
       logger.error('Error fetching renewals', error);
       // Set empty summary on error to prevent crashes
@@ -124,25 +170,63 @@ export function RenewalFiltersClient({
     }
   };
 
+  const clearFilters = () => {
+    const emptyFilters = {
+      year: undefined,
+      quarter: undefined,
+      status: undefined,
+      monthName: undefined,
+      country: undefined,
+      countrySearch: undefined,
+      srlSearch: undefined,
+      businessType: undefined,
+      className: undefined,
+      subClass: undefined,
+      loc: undefined,
+      extType: undefined,
+    };
+    fetchSummary(emptyFilters);
+  };
+
   return (
     <div className="space-y-6">
-      {/* Filters at the Top - Sticky */}
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/50 shadow-sm">
-        <RenewalFilters
-          initialYear={initialYear}
-          initialQuarter={initialQuarter}
-          initialStatus={initialStatus}
-          initialMonthName={initialMonthName}
-          initialCountry={initialCountry}
-          initialBusinessType={initialBusinessType}
-          initialClassName={initialClassName}
-          initialCountrySearch={initialCountrySearch}
-          initialSrlSearch={initialSrlSearch}
-          initialLoc={initialLoc}
-          filterOptions={filterOptions}
-          onChange={fetchSummary}
+      {/* Header with Filter Button */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-semibold">Renewals Book</h1>
+        <FilterButton
+          onClick={() => setIsFilterDialogOpen(true)}
+          activeFilterCount={activeFilterCount}
         />
       </div>
+
+      {/* Filter Dialog */}
+      <FilterDialog
+        open={isFilterDialogOpen}
+        onOpenChange={setIsFilterDialogOpen}
+        title="Renewals Filters"
+        activeFilterCount={activeFilterCount}
+        onClearFilters={clearFilters}
+        className="max-w-6xl w-[95vw] sm:w-full"
+      >
+        <RenewalFilters
+          initialYear={currentFilters.year}
+          initialQuarter={currentFilters.quarter}
+          initialStatus={currentFilters.status}
+          initialMonthName={currentFilters.monthName}
+          initialCountry={currentFilters.country?.[0]}
+          initialBusinessType={currentFilters.businessType?.[0]}
+          initialClassName={currentFilters.className?.[0]}
+          initialCountrySearch={currentFilters.countrySearch}
+          initialSrlSearch={currentFilters.srlSearch}
+          initialLoc={currentFilters.loc}
+          filterOptions={filterOptions}
+          onChange={(filters) => {
+            fetchSummary(filters);
+            setIsFilterDialogOpen(false);
+          }}
+          inDialog={true}
+        />
+      </FilterDialog>
       
       {/* Main Content with padding to prevent overlap */}
       <div className="pt-6 space-y-6">
