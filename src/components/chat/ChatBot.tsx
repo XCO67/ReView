@@ -222,7 +222,7 @@ export function ChatBot({ className }: ChatBotProps) {
                         <div className="text-sm leading-relaxed whitespace-pre-wrap">
                           {formatMessage(message.content)}
                         </div>
-                        {message.data && (
+                        {message.data != null && (
                           <div className="mt-2 pt-2 border-t border-white/10">
                             <div className="flex items-center gap-2 text-xs text-white/60">
                               <TrendingUp className="h-3 w-3" />
