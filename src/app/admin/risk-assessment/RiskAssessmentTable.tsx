@@ -254,7 +254,7 @@ export default function RiskAssessmentTable({ initialData }: RiskAssessmentTable
   };
 
   const getFieldValue = (item: RiskControlAssessment, field: string): string => {
-    const value = (item as Record<string, unknown>)[field];
+    const value = (item as unknown as Record<string, unknown>)[field];
     if (value === null || value === undefined) return '';
     if (value instanceof Date) {
       return value.toISOString().split('T')[0];
