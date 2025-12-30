@@ -49,6 +49,29 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
   const [premiumRangeFrom, setPremiumRangeFrom] = useState<string>('');
   const [premiumRangeTo, setPremiumRangeTo] = useState<string>('');
 
+  // Calculate ranges from ALL data (not filtered) - this ensures ranges are always valid
+  const allDataRanges = useMemo(() => {
+    const validData = data.filter(record => {
+      const maxLiability = convertValue(record.maxLiabilityKD || 0);
+      const premium = convertValue(record.grsPremKD || 0);
+      return maxLiability > 0 && premium > 0;
+    });
+
+    if (validData.length === 0) {
+      return { premiumMin: 0, premiumMax: 1000000, liabilityMin: 0, liabilityMax: 10000000 };
+    }
+
+    const premiums = validData.map(record => convertValue(record.grsPremKD || 0));
+    const liabilities = validData.map(record => convertValue(record.maxLiabilityKD || 0));
+
+    return {
+      premiumMin: Math.min(...premiums),
+      premiumMax: Math.max(...premiums),
+      liabilityMin: Math.min(...liabilities),
+      liabilityMax: Math.max(...liabilities),
+    };
+  }, [data, convertValue]);
+
   // Prepare chart data: each record becomes a dot
   // Limit to MAX_DOTS for performance
   const chartData = useMemo(() => {
@@ -58,8 +81,8 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
         const premium = convertValue(record.grsPremKD || 0);
         
         // Apply premium range filter if set
-        const fromPremium = premiumRangeFrom ? parseFloat(premiumRangeFrom) : 0;
-        const toPremium = premiumRangeTo ? parseFloat(premiumRangeTo) : Infinity;
+        const fromPremium = premiumRangeFrom ? parseFloat(premiumRangeFrom.replace(/,/g, '')) || 0 : 0;
+        const toPremium = premiumRangeTo ? parseFloat(premiumRangeTo.replace(/,/g, '')) || Infinity : Infinity;
         const inPremiumRange = premium >= fromPremium && premium <= toPremium;
         
         // Only include records with valid data and within premium range
@@ -90,23 +113,6 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
 
     return filtered;
   }, [data, convertValue, premiumRangeFrom, premiumRangeTo]);
-
-  // Calculate min/max values for ranges
-  const dataRanges = useMemo(() => {
-    if (chartData.length === 0) {
-      return { premiumMin: 0, premiumMax: 600000, liabilityMin: 0, liabilityMax: 10000000 };
-    }
-    
-    const premiums = chartData.map(d => d.y);
-    const liabilities = chartData.map(d => d.x);
-    
-    return {
-      premiumMin: Math.min(...premiums),
-      premiumMax: Math.max(...premiums),
-      liabilityMin: Math.min(...liabilities),
-      liabilityMax: Math.max(...liabilities),
-    };
-  }, [chartData]);
 
 
   // Use canvas for large datasets (better performance)
@@ -141,7 +147,7 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
   }, [formatCurrencyNumeric, convertValue]);
 
   useEffect(() => {
-    if (!svgRef.current || chartData.length === 0) return;
+    if (!svgRef.current) return;
 
     // Cancel any pending animation frame
     if (animationFrameRef.current) {
@@ -161,10 +167,12 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
       svg.attr('width', width).attr('height', height);
 
     // Calculate dynamic ranges
-    const premiumMin = premiumRangeFrom ? parseFloat(premiumRangeFrom) : 0;
-    const premiumMax = premiumRangeTo ? parseFloat(premiumRangeTo) : 600000;
-    const liabilityMin = dataRanges.liabilityMin;
-    const liabilityMax = dataRanges.liabilityMax;
+    // Use user-specified premium range, or fall back to all data range
+    const premiumMin = premiumRangeFrom ? parseFloat(premiumRangeFrom.replace(/,/g, '')) || allDataRanges.premiumMin : allDataRanges.premiumMin;
+    const premiumMax = premiumRangeTo ? parseFloat(premiumRangeTo.replace(/,/g, '')) || allDataRanges.premiumMax : allDataRanges.premiumMax;
+    // Always use all data ranges for liability (not filtered)
+    const liabilityMin = allDataRanges.liabilityMin;
+    const liabilityMax = allDataRanges.liabilityMax;
     
     // Add padding to ranges
     const premiumRange = premiumMax - premiumMin;
@@ -553,11 +561,11 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
         svg.selectAll('*').remove();
       }
     };
-  }, [chartData, formatCurrencyNumeric, convertValue, useCanvas, updateTooltip, data, premiumRangeFrom, premiumRangeTo, dataRanges]);
+  }, [chartData, formatCurrencyNumeric, convertValue, useCanvas, updateTooltip, data, premiumRangeFrom, premiumRangeTo, allDataRanges]);
 
   const emptyState = (
     <div className="flex items-center justify-center h-[600px] text-muted-foreground">
-      <p>No data available for the selected filters</p>
+      <p>No data points in the selected premium range</p>
     </div>
   );
 
@@ -573,22 +581,26 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
             <div className="flex items-center gap-2">
               <Input
                 id="premium-from"
-                type="number"
+                type="text"
                 placeholder="From"
                 value={premiumRangeFrom}
-                onChange={(e) => setPremiumRangeFrom(e.target.value)}
-                className="w-24 h-8 text-sm"
-                min="0"
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^0-9.,]/g, '');
+                  setPremiumRangeFrom(value);
+                }}
+                className="w-32 h-8 text-sm"
               />
               <span className="text-sm text-muted-foreground">-</span>
               <Input
                 id="premium-to"
-                type="number"
+                type="text"
                 placeholder="To"
                 value={premiumRangeTo}
-                onChange={(e) => setPremiumRangeTo(e.target.value)}
-                className="w-24 h-8 text-sm"
-                min="0"
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^0-9.,]/g, '');
+                  setPremiumRangeTo(value);
+                }}
+                className="w-32 h-8 text-sm"
               />
             </div>
             {(premiumRangeFrom || premiumRangeTo) && (
@@ -606,14 +618,14 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
             )}
           </div>
           <div className="text-xs text-muted-foreground">
-            Max Liability Range: {formatCurrencyNumeric(dataRanges.liabilityMin)} - {formatCurrencyNumeric(dataRanges.liabilityMax)}
+            Max Liability Range: {formatCurrencyNumeric(allDataRanges.liabilityMin)} - {formatCurrencyNumeric(allDataRanges.liabilityMax)}
           </div>
         </div>
       </div>
 
       <div className="relative">
         <svg ref={svgRef} className="w-full" style={{ position: 'relative', zIndex: 1 }} />
-        {useCanvas && (
+        {useCanvas && chartData.length > 0 && (
           <canvas
             ref={canvasRef}
             className="absolute top-0 left-0 pointer-events-auto"
@@ -625,13 +637,18 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
           className="absolute pointer-events-none opacity-0 bg-popover text-popover-foreground border rounded-lg shadow-lg z-50 transition-opacity"
           style={{ minWidth: '200px' }}
         />
+        {chartData.length === 0 && (premiumRangeFrom || premiumRangeTo) && (
+          <div className="absolute top-2 right-2 bg-muted/80 text-muted-foreground text-xs px-2 py-1 rounded z-10">
+            No data points in selected range
+          </div>
+        )}
         {chartData.length >= MAX_DOTS && (
           <div className="absolute top-2 right-2 bg-muted/80 text-muted-foreground text-xs px-2 py-1 rounded z-10">
             Showing {MAX_DOTS.toLocaleString()} of {data.filter(r => {
               const maxLiability = convertValue(r.maxLiabilityKD || 0);
               const premium = convertValue(r.grsPremKD || 0);
-              const fromPremium = premiumRangeFrom ? parseFloat(premiumRangeFrom) : 0;
-              const toPremium = premiumRangeTo ? parseFloat(premiumRangeTo) : Infinity;
+              const fromPremium = premiumRangeFrom ? parseFloat(premiumRangeFrom.replace(/,/g, '')) || 0 : 0;
+              const toPremium = premiumRangeTo ? parseFloat(premiumRangeTo.replace(/,/g, '')) || Infinity : Infinity;
               const inPremiumRange = premium >= fromPremium && premium <= toPremium;
               return maxLiability > 0 && premium > 0 && inPremiumRange;
             }).length.toLocaleString()} records
@@ -661,22 +678,8 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
     </>
   );
 
-  if (chartData.length === 0) {
-    if (noCard) {
-      return <div className={className}>{emptyState}</div>;
-    }
-    return (
-      <Card className={className}>
-        <CardHeader>
-          <CardTitle>Quadrant Chart</CardTitle>
-          <CardDescription>Max Liability vs Premium (colored by Loss Ratio)</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {emptyState}
-        </CardContent>
-      </Card>
-    );
-  }
+  // Always show the chart, even if there's no data in the selected range
+  // The chart will show the axes and quadrants, just no data points
 
   if (noCard) {
     return <div className={className}>{chartContent}</div>;
