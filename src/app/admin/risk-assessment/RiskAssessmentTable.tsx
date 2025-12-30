@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { RiskControlAssessment } from '@/lib/database/queries';
 import { Save, X, Search, Trash2, Bell } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -262,13 +263,16 @@ export default function RiskAssessmentTable({ initialData }: RiskAssessmentTable
     return value.toString();
   };
 
+  // LOB dropdown options
+  const lobOptions = ['FAC', 'TTY', 'TTY & FAC'];
+
   const columns = [
     { key: 'risk_id', label: 'Risk ID', width: '120px', required: true },
     { key: 'risk_item', label: 'RISK ITEM', width: '220px' },
     { key: 'risk_description', label: 'RISK DESCRIPTION', width: '320px' },
     { key: 'control_exist', label: 'CONTROL EXIST?', width: '130px' },
     { key: 'unit', label: 'UNIT', width: '160px' },
-    { key: 'lob', label: 'LOB', width: '130px' },
+    { key: 'lob', label: 'LOB', width: '130px', isDropdown: true, options: lobOptions },
     { key: 'class', label: 'CLASS', width: '160px' },
     { key: 'risk_owner', label: 'Risk Owner', width: '160px' },
     { key: 'level_01', label: 'LEVEL 01', width: '160px' },
@@ -310,6 +314,35 @@ export default function RiskAssessmentTable({ initialData }: RiskAssessmentTable
       : getFieldValue(item as RiskControlAssessment, col.key);
 
     if (isNewRow) {
+      // Use Select dropdown for LOB field
+      if (col.key === 'lob' && col.isDropdown && col.options) {
+        return (
+          <TableCell
+            key={col.key}
+            className="text-xs text-white/70 p-2 bg-white/5 border-r border-white/15"
+            style={{ minWidth: col.width }}
+          >
+            <Select
+              value={value || ''}
+              onValueChange={(selectedValue) => {
+                setNewRowData(prev => ({ ...prev, [col.key]: selectedValue }));
+              }}
+            >
+              <SelectTrigger className="h-9 text-xs bg-white/15 border-white/25 text-white focus:ring-2 focus:ring-white/30">
+                <SelectValue placeholder={col.required ? `${col.label} *` : col.label} />
+              </SelectTrigger>
+              <SelectContent>
+                {col.options.map((option: string) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </TableCell>
+        );
+      }
+      
       return (
         <TableCell
           key={col.key}
@@ -336,29 +369,49 @@ export default function RiskAssessmentTable({ initialData }: RiskAssessmentTable
       >
         {isEditing ? (
           <div className="flex items-start gap-2">
-            <Input
-              value={editValue}
-              onChange={(e) => {
-                setEditValue(e.target.value);
-                // Auto-calculate if editing input_frequency or input_severity
-                if (col.key === 'input_frequency' || col.key === 'input_severity') {
-                  const currentItem = data.find(item => item.risk_id === riskId);
-                  if (currentItem) {
-                    // Update the edit value to show calculated fields will change
-                    // The actual save will handle the calculations
+            {col.key === 'lob' && col.isDropdown && col.options ? (
+              <Select
+                value={editValue || ''}
+                onValueChange={(selectedValue) => {
+                  setEditValue(selectedValue);
+                }}
+              >
+                <SelectTrigger className="h-9 text-xs bg-white/15 border-white/25 text-white flex-1 focus:ring-2 focus:ring-white/30">
+                  <SelectValue placeholder={col.label} />
+                </SelectTrigger>
+                <SelectContent>
+                  {col.options.map((option: string) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                value={editValue}
+                onChange={(e) => {
+                  setEditValue(e.target.value);
+                  // Auto-calculate if editing input_frequency or input_severity
+                  if (col.key === 'input_frequency' || col.key === 'input_severity') {
+                    const currentItem = data.find(item => item.risk_id === riskId);
+                    if (currentItem) {
+                      // Update the edit value to show calculated fields will change
+                      // The actual save will handle the calculations
+                    }
                   }
-                }
-              }}
-              className="h-9 text-xs bg-white/15 border-white/25 text-white flex-1 focus:ring-2 focus:ring-white/30"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleSave(riskId, col.key);
-                } else if (e.key === 'Escape') {
-                  handleCancel();
-                }
-              }}
-            />
+                }}
+                className="h-9 text-xs bg-white/15 border-white/25 text-white flex-1 focus:ring-2 focus:ring-white/30"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSave(riskId, col.key);
+                  } else if (e.key === 'Escape') {
+                    handleCancel();
+                  }
+                }}
+              />
+            )}
             <Button
               size="sm"
               variant="ghost"
@@ -489,6 +542,36 @@ export default function RiskAssessmentTable({ initialData }: RiskAssessmentTable
                         </TableCell>
                       );
                     }
+                    // Use Select dropdown for LOB field
+                    if (col.key === 'lob' && col.isDropdown && col.options) {
+                      return (
+                        <TableCell
+                          key={col.key}
+                          className="text-xs text-white/70 p-2 bg-white/5 border-r border-white/15"
+                          style={{ minWidth: col.width }}
+                        >
+                          <Select
+                            value={value || ''}
+                            onValueChange={(selectedValue) => {
+                              const updated = { ...newRowData, [col.key]: selectedValue };
+                              setNewRowData(updated);
+                            }}
+                          >
+                            <SelectTrigger className="h-9 text-xs bg-white/15 border-white/25 text-white focus:ring-2 focus:ring-white/30">
+                              <SelectValue placeholder={col.required ? `${col.label} *` : col.label} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {col.options.map((option: string) => (
+                                <SelectItem key={option} value={option}>
+                                  {option}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      );
+                    }
+                    
                     return (
                       <TableCell
                         key={col.key}
