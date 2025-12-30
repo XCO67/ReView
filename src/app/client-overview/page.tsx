@@ -581,6 +581,66 @@ export default function ClientOverviewPage() {
     };
   }, [filteredData, clientType, maxClients, filters]);
 
+  // Calculate extType/year breakdown when broker/cedant is selected
+  const extTypeYearBreakdown = useMemo(() => {
+    const selectedBroker = universalFilters.broker;
+    const selectedCedant = universalFilters.cedant;
+    
+    // Only show table if a broker or cedant is selected
+    if (!selectedBroker && !selectedCedant) {
+      return null;
+    }
+
+    // Filter data for selected broker/cedant
+    let relevantData = filteredData;
+    if (selectedBroker) {
+      relevantData = relevantData.filter(d => d.broker && d.broker.toLowerCase() === selectedBroker.toLowerCase());
+    }
+    if (selectedCedant) {
+      relevantData = relevantData.filter(d => d.cedant && d.cedant.toLowerCase() === selectedCedant.toLowerCase());
+    }
+
+    if (relevantData.length === 0) {
+      return null;
+    }
+
+    // Get all available years
+    const years = [...new Set(relevantData.map(d => d.year).filter(y => y !== undefined))].sort((a, b) => (a ?? 0) - (b ?? 0));
+
+    // Group by extType and year - TTY includes XOL
+    const breakdown: Record<string, Record<number, number>> = {
+      FAC: {},
+      'TTY (incl. XOL)': {}
+    };
+
+    relevantData.forEach(record => {
+      const extType = record.extType?.trim().toUpperCase();
+      const year = record.year;
+      
+      if (!extType || !year) return;
+
+      // Map extType to our categories - TTY and XOL go into same category
+      let category: 'FAC' | 'TTY (incl. XOL)' | null = null;
+      if (extType === 'FAC') {
+        category = 'FAC';
+      } else if (extType === 'TTY' || extType === 'XOL') {
+        category = 'TTY (incl. XOL)';
+      }
+
+      if (category) {
+        if (!breakdown[category][year]) {
+          breakdown[category][year] = 0;
+        }
+        breakdown[category][year] += record.grossUWPrem;
+      }
+    });
+
+    return {
+      years,
+      breakdown
+    };
+  }, [filteredData, universalFilters.broker, universalFilters.cedant]);
+
   // Sync universal filters to internal filter state
   useEffect(() => {
     setFilters({
@@ -727,6 +787,45 @@ export default function ClientOverviewPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* ExtType/Year Breakdown Table - shown when broker/cedant is selected */}
+            {extTypeYearBreakdown && extTypeYearBreakdown.years.length > 0 && (
+              <div className="mb-6">
+                <div className="mb-3">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Premium Breakdown by Extract Type and Underwriting Year
+                    {universalFilters.broker && ` - ${universalFilters.broker}`}
+                    {universalFilters.cedant && ` - ${universalFilters.cedant}`}
+                  </h3>
+                </div>
+                <div className="overflow-x-auto border rounded-lg">
+                  <Table>
+                    <TableHeader className="bg-muted/50">
+                      <TableRow>
+                        <TableHead className="font-semibold">Extract Type</TableHead>
+                        {extTypeYearBreakdown.years.map(year => (
+                          <TableHead key={year} className="text-right font-semibold">
+                            {year}
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(['FAC', 'TTY (incl. XOL)'] as const).map(extType => (
+                        <TableRow key={extType} className="hover:bg-muted/30">
+                          <TableCell className="font-medium">{extType}</TableCell>
+                          {extTypeYearBreakdown.years.map(year => (
+                            <TableCell key={year} className="text-right font-mono text-sm">
+                              {formatCurrencyNumeric(extTypeYearBreakdown.breakdown[extType][year] || 0)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+
             <Tabs value={clientType} onValueChange={(value) => setClientType(value as ClientType)}>
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="broker" className="flex items-center space-x-2">

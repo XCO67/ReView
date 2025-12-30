@@ -210,12 +210,32 @@ export default function AnalyticsPage() {
       const entityData = filteredData.filter(d => d[field] === entity.entityValue);
       const kpis = aggregateKPIs(entityData);
 
+      // Calculate premium breakdown by extract type (FAC, TTY, XOL)
+      const facPremium = entityData
+        .filter(d => d.extType && d.extType.trim().toUpperCase() === 'FAC')
+        .reduce((sum, d) => sum + (d.grsPremKD || 0), 0);
+      const ttyPremium = entityData
+        .filter(d => d.extType && d.extType.trim().toUpperCase() === 'TTY')
+        .reduce((sum, d) => sum + (d.grsPremKD || 0), 0);
+      const xolPremium = entityData
+        .filter(d => d.extType && d.extType.trim().toUpperCase() === 'XOL')
+        .reduce((sum, d) => sum + (d.grsPremKD || 0), 0);
+
       return {
         ...entity,
         kpis,
         recordCount: entityData.length,
+        premiumBreakdown: {
+          fac: facPremium,
+          tty: ttyPremium,
+          xol: xolPremium,
+        },
       };
-    }).filter(Boolean) as Array<ComparisonEntity & { kpis: ReturnType<typeof aggregateKPIs>; recordCount: number }>;
+    }).filter(Boolean) as Array<ComparisonEntity & { 
+      kpis: ReturnType<typeof aggregateKPIs>; 
+      recordCount: number;
+      premiumBreakdown: { fac: number; tty: number; xol: number };
+    }>;
   }, [filteredData, comparisonEntities]);
 
   const handleAddEntity = (entityValue: string) => {
@@ -484,25 +504,28 @@ export default function AnalyticsPage() {
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.9 }}
                       transition={{ duration: 0.3, delay: index * 0.1 }}
+                      className="min-w-0"
                     >
-                      <Card className="h-full border-2 hover:border-primary/50 transition-colors">
-                        <CardHeader className="pb-3">
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="text-lg truncate">{entity.label}</CardTitle>
+                      <Card className="h-full border-2 hover:border-primary/50 transition-colors overflow-hidden w-full">
+                        <CardHeader className="pb-3 min-w-0">
+                          <div className="flex items-center justify-between gap-2 min-w-0">
+                            <CardTitle className="text-lg truncate min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
+                              {entity.label}
+                            </CardTitle>
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-6 w-6 p-0"
+                              className="h-6 w-6 p-0 flex-shrink-0"
                               onClick={() => handleRemoveEntity(entity.id)}
                             >
                               <X className="h-3 w-3" />
                             </Button>
                           </div>
-                          <CardDescription className="text-xs">
+                          <CardDescription className="text-xs truncate min-w-0 overflow-hidden text-ellipsis">
                             {groupByLabels[entity.groupBy]?.label} • {formatNumber(entity.recordCount)} records
                           </CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-3">
+                        <CardContent className="space-y-3 min-w-0">
                           <div className="space-y-2">
                             <div className="flex justify-between items-center">
                               <span className="text-xs text-muted-foreground">Premium</span>
@@ -516,6 +539,25 @@ export default function AnalyticsPage() {
                                 />
                               </div>
                             )}
+                          </div>
+
+                          {/* Premium Breakdown */}
+                          <div className="pt-2 border-t space-y-1">
+                            <div className="text-xs font-medium text-muted-foreground mb-1.5">Premium Breakdown:</div>
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-xs">
+                                <span className="text-muted-foreground">FAC:</span>
+                                <span className="font-medium">{formatCurrencyNumeric(entity.premiumBreakdown.fac)}</span>
+                              </div>
+                              <div className="flex justify-between text-xs">
+                                <span className="text-muted-foreground">TTY:</span>
+                                <span className="font-medium">{formatCurrencyNumeric(entity.premiumBreakdown.tty)}</span>
+                              </div>
+                              <div className="flex justify-between text-xs">
+                                <span className="text-muted-foreground">XOL:</span>
+                                <span className="font-medium">{formatCurrencyNumeric(entity.premiumBreakdown.xol)}</span>
+                              </div>
+                            </div>
                           </div>
 
                           <div className="space-y-2">
@@ -578,7 +620,7 @@ export default function AnalyticsPage() {
                               <span className="font-medium">{formatCurrencyNumeric(entity.kpis.incurredClaims)}</span>
                             </div>
                             <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">Expense:</span>
+                              <span className="text-muted-foreground">Acquisition Cost:</span>
                               <span className="font-medium">{formatCurrencyNumeric(entity.kpis.expense)}</span>
                             </div>
                           </div>
@@ -723,51 +765,6 @@ export default function AnalyticsPage() {
                 </CardContent>
               </Card>
 
-              {/* Component 4: Summary Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {comparisonData.map((entity) => (
-                  <Card key={entity.id} className="bg-gradient-to-br from-background to-muted/30">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base">{entity.label}</CardTitle>
-                      <CardDescription className="text-xs">
-                        {groupByLabels[entity.groupBy]?.label}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div>
-                          <div className="text-muted-foreground">Premium</div>
-                          <div className="font-semibold">{formatCurrencyNumeric(entity.kpis.premium)}</div>
-                        </div>
-                        <div>
-                          <div className="text-muted-foreground">Accounts</div>
-                          <div className="font-semibold">{formatNumber(entity.kpis.numberOfAccounts)}</div>
-                        </div>
-                        <div>
-                          <div className="text-muted-foreground">Loss Ratio</div>
-                          <div className={`font-semibold ${
-                            entity.kpis.lossRatio > 100 ? 'text-red-600' : 
-                            entity.kpis.lossRatio > 80 ? 'text-yellow-600' : 
-                            'text-green-600'
-                          }`}>
-                            {formatPct(entity.kpis.lossRatio)}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-muted-foreground">Combined</div>
-                          <div className={`font-semibold ${
-                            entity.kpis.combinedRatio > 100 ? 'text-red-600' : 
-                            entity.kpis.combinedRatio > 90 ? 'text-yellow-600' : 
-                            'text-green-600'
-                          }`}>
-                            {formatPct(entity.kpis.combinedRatio)}
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
             </motion.div>
           )}
 

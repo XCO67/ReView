@@ -95,7 +95,7 @@ export default function WorldMapPage() {
   const [recordSearch, setRecordSearch] = useState('');
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [selectedYearIndex, setSelectedYearIndex] = useState<number | null>(null);
-  const [metricType, setMetricType] = useState<'premium' | 'maxLiability' | 'lossRatio' | 'count'>('premium');
+  const [metricType, setMetricType] = useState<'premium' | 'lossRatio'>('premium');
   const [allData, setAllData] = useState<ReinsuranceData[]>([]);
   const [filters, setFilters] = useState<UniversalFilterState>({
     office: null,
@@ -269,6 +269,20 @@ export default function WorldMapPage() {
       },
       { policies: 0, maxLiability: 0, premium: 0, incurred: 0, lossRatioSum: 0, lossRatioCount: 0 }
     );
+  }, [filteredRecords]);
+
+  // Calculate average max liability for visible records
+  const avgMaxLiability = useMemo(() => {
+    if (!visibleRecords.length) return 0;
+    const sum = visibleRecords.reduce((acc, record) => acc + (record.maxLiability || 0), 0);
+    return sum / visibleRecords.length;
+  }, [visibleRecords]);
+
+  // Calculate average max liability for all filtered records (for totals)
+  const avgMaxLiabilityTotal = useMemo(() => {
+    if (!filteredRecords.length) return 0;
+    const sum = filteredRecords.reduce((acc, record) => acc + (record.maxLiability || 0), 0);
+    return sum / filteredRecords.length;
   }, [filteredRecords]);
 
 
@@ -702,15 +716,13 @@ const displayedCountries = useMemo(() => {
                         <label htmlFor="metric-type" className="text-sm text-muted-foreground">
                           View by:
                         </label>
-                        <Select value={metricType} onValueChange={(value: 'premium' | 'maxLiability' | 'lossRatio' | 'count') => setMetricType(value)}>
+                        <Select value={metricType} onValueChange={(value: 'premium' | 'lossRatio') => setMetricType(value)}>
                           <SelectTrigger id="metric-type" className="w-[160px]">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="premium">Premium</SelectItem>
-                            <SelectItem value="maxLiability">Max Liability</SelectItem>
                             <SelectItem value="lossRatio">Loss Ratio</SelectItem>
-                            <SelectItem value="count">Policy Count</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -727,6 +739,12 @@ const displayedCountries = useMemo(() => {
                   </div>
                 </CardHeader>
                 <CardContent>
+                  {/* Disclaimer */}
+                  <div className="mb-4 p-3 bg-muted/50 border border-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">
+                      <strong>Disclaimer:</strong> Figures are for Running (Active) policies for selected year
+                    </p>
+                  </div>
                   <div className="relative" style={{ minHeight: '600px' }}>
                     <WorldMap
                       data={displayedCountries}
@@ -883,10 +901,10 @@ const displayedCountries = useMemo(() => {
                                     <TableHead className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-[11px] text-muted-foreground">Broker</TableHead>
                                     <TableHead className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-[11px] text-muted-foreground">Cedant</TableHead>
                                     <TableHead className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-[11px] text-muted-foreground">Country Name</TableHead>
-                                    <TableHead className="w-[160px] px-4 py-3 text-right font-semibold uppercase tracking-wide text-[11px] text-muted-foreground">Max Liability</TableHead>
                                     <TableHead className="w-[140px] px-4 py-3 text-right font-semibold uppercase tracking-wide text-[11px] text-muted-foreground">Premium</TableHead>
+                                    <TableHead className="w-[160px] px-4 py-3 text-right font-semibold uppercase tracking-wide text-[11px] text-muted-foreground">Max Liability</TableHead>
                                     <TableHead className="w-[140px] px-4 py-3 text-right font-semibold uppercase tracking-wide text-[11px] text-muted-foreground">Incurred</TableHead>
-                                    <TableHead className="w-[140px] px-4 py-3 text-right font-semibold uppercase tracking-wide text-[11px] text-muted-foreground">Loss Ratio</TableHead>
+                                    <TableHead className="w-[140px] px-4 py-3 text-right font-semibold uppercase tracking-wide text-[11px] text-muted-foreground">LR%</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -915,10 +933,10 @@ const displayedCountries = useMemo(() => {
                                         {record.countryName || selectedCountry?.country || '—'}
                                       </TableCell>
                                       <TableCell className="px-4 py-3 text-right font-mono text-sm text-foreground">
-                                        {formatCurrencyNumeric(record.maxLiability)}
+                                        {formatCurrencyNumeric(record.premium)}
                                       </TableCell>
                                       <TableCell className="px-4 py-3 text-right font-mono text-sm text-foreground">
-                                        {formatCurrencyNumeric(record.premium)}
+                                        {formatCurrencyNumeric(record.maxLiability)}
                                       </TableCell>
                                       <TableCell className="px-4 py-3 text-right font-mono text-sm text-foreground">
                                         {formatCurrencyNumeric(record.incurredClaims)}
@@ -946,10 +964,10 @@ const displayedCountries = useMemo(() => {
                                       <TableCell className="px-4 py-3" colSpan={3}></TableCell>
                                       <TableCell className="px-4 py-3"></TableCell>
                                       <TableCell className="px-4 py-3 text-right font-mono text-sm">
-                                        {formatCurrencyNumeric(recordTotals.maxLiability)}
+                                        {formatCurrencyNumeric(recordTotals.premium)}
                                       </TableCell>
                                       <TableCell className="px-4 py-3 text-right font-mono text-sm">
-                                        {formatCurrencyNumeric(recordTotals.premium)}
+                                        {formatCurrencyNumeric(recordTotals.maxLiability / recordTotals.policies)}
                                       </TableCell>
                                       <TableCell className="px-4 py-3 text-right font-mono text-sm">
                                         {formatCurrencyNumeric(recordTotals.incurred)}
@@ -1011,14 +1029,22 @@ const displayedCountries = useMemo(() => {
                           <TableHead>Country</TableHead>
                           <TableHead className="text-right">Policies</TableHead>
                           <TableHead className="text-right">Premium</TableHead>
-                          <TableHead className="text-right">Loss Ratio</TableHead>
-                          <TableHead className="text-right">Combined Ratio</TableHead>
+                          <TableHead className="text-right">Average Max Liability</TableHead>
+                          <TableHead className="text-right">LR%</TableHead>
+                          <TableHead className="text-right">uCR%</TableHead>
                           <TableHead className="text-right">Brokers</TableHead>
                           <TableHead className="text-right">Cedants</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {topCountries.map((country, index) => (
+                        {topCountries.map((country, index) => {
+                          // Calculate average max liability for this country
+                          const countryRecords = country.records || [];
+                          const avgMaxLiability = countryRecords.length > 0
+                            ? countryRecords.reduce((sum, r) => sum + (r.maxLiability || 0), 0) / countryRecords.length
+                            : 0;
+                          
+                          return (
                           <TableRow 
                             key={country.country} 
                             className="border-b hover:bg-muted/30 cursor-pointer"
@@ -1035,6 +1061,9 @@ const displayedCountries = useMemo(() => {
                             </TableCell>
                             <TableCell className="text-right font-mono text-sm">
                               {formatCurrencyNumeric(country.premium)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-sm">
+                              {formatCurrencyNumeric(avgMaxLiability)}
                             </TableCell>
                             <TableCell className="text-right">
                               <Badge variant={getRatioBadgeVariant(country.lossRatioPct)}>
@@ -1053,7 +1082,8 @@ const displayedCountries = useMemo(() => {
                               {country.cedants.length}
                             </TableCell>
                           </TableRow>
-                        ))}
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>

@@ -834,13 +834,13 @@ export default function PerformancePage() {
                     <thead>
                       <tr className="border-b">
                         <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide bg-muted/50 border-r-2">
+                          SRL Number
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide bg-muted/50 border-r-2">
                           Policy Name
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide bg-muted/50 border-r-2">
                           Cedant Name
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide bg-muted/50 border-r-2">
-                          SRL Number
                         </th>
                         {selectedYears.slice().sort((a, b) => a - b).map((year) => (
                           <th key={year} colSpan={3} className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide bg-muted/50 border-r-2 border-primary/30">
@@ -863,10 +863,10 @@ export default function PerformancePage() {
                     </thead>
                     <tbody>
                       {groupedByPolicy.map((policy, index) => (
-                        <tr key={`${policy.policyName}-${policy.cedantName}-${index}`} className="border-b hover:bg-muted/30">
-                          <td className="px-4 py-3 font-medium border-r-2">{policy.policyName}</td>
-                          <td className="px-4 py-3 border-r-2">{policy.cedantName}</td>
+                        <tr key={`${policy.policyName}-${policy.cedantName}-${index}`} className="border-b hover:bg-primary/15 hover:shadow-sm transition-colors cursor-pointer">
                           <td className="px-4 py-3 border-r-2">{policy.srlNumber || '-'}</td>
+                          <td className="px-4 py-3 text-sm border-r-2">{policy.policyName}</td>
+                          <td className="px-4 py-3 border-r-2">{policy.cedantName}</td>
                           {selectedYears.slice().sort((a, b) => a - b).map((year) => {
                             const record = policy.years.get(year);
                             return (
@@ -900,9 +900,9 @@ export default function PerformancePage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>SRL Number</TableHead>
                         <TableHead>Policy Name</TableHead>
                         <TableHead>Cedant Name</TableHead>
-                        <TableHead>SRL Number</TableHead>
                         <TableHead className="text-right">No. of Policies</TableHead>
                         <TableHead className="text-right">Premium</TableHead>
                         <TableHead className="text-right">uCR%</TableHead>
@@ -911,10 +911,10 @@ export default function PerformancePage() {
                     </TableHeader>
                     <TableBody>
                       {filteredTableData.map((record, index) => (
-                        <TableRow key={`${record.policyName}-${record.year}-${index}`}>
-                          <TableCell className="font-medium">{record.policyName}</TableCell>
-                          <TableCell>{record.cedantName}</TableCell>
+                        <TableRow key={`${record.policyName}-${record.year}-${index}`} className="hover:bg-primary/15 hover:shadow-sm transition-colors cursor-pointer">
                           <TableCell>{record.srlNumber || '-'}</TableCell>
+                          <TableCell className="text-sm">{record.policyName}</TableCell>
+                          <TableCell>{record.cedantName}</TableCell>
                           <TableCell className="text-right font-mono">
                             {record.policyCount.toLocaleString()}
                           </TableCell>

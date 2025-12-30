@@ -193,17 +193,18 @@ export function Navbar() {
             {navigation.map((item) => {
               const isActive = pathname === item.href;
               return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    isActive
-                      ? "bg-white text-black shadow-md"
-                      : "text-gray-300 hover:text-white hover:bg-gray-800"
-                  }`}
-                >
-                  <item.icon className="w-4 h-4" />
-                  <span>{item.name}</span>
+                <Link key={item.name} href={item.href}>
+                  <Button
+                    variant="ghost"
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      isActive
+                        ? "bg-white text-black shadow-md"
+                        : "text-gray-300 hover:text-white hover:bg-gray-800"
+                    }`}
+                  >
+                    <item.icon className="w-4 h-4" />
+                    <span>{item.name}</span>
+                  </Button>
                 </Link>
               );
             })}

@@ -235,79 +235,72 @@ export function UyPerformanceTable({
           </TableCell>
         </motion.tr>
         <AnimatePresence>
-          {canExpand && isExpanded && periodDataMap.has(row.uy) && (
-            <motion.tr
-              key={`${row.uy}-expanded`}
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <TableCell colSpan={11} className="p-0 bg-muted/20">
-                <div className="px-4 py-2">
-                  <Table>
-                    <TableBody>
-                      {periodDataMap.get(row.uy)!.map((periodRow) => (
-                        <TableRow key={`${row.uy}-${periodRow.period}`} className="bg-background/50">
-                          <TableCell className="font-medium pl-8 text-muted-foreground">
-                            {periodRow.period}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-sm">
-                            {formatCurrencyNumeric(periodRow.premium)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-sm">
-                            {formatCurrencyNumeric(periodRow.paidClaims)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-sm">
-                            {formatCurrencyNumeric(periodRow.outstandingClaims)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-sm">
-                            {formatCurrencyNumeric(periodRow.incurredClaims)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-sm">
-                            {formatCurrencyNumeric(periodRow.expense)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className={`${
-                              periodRow.lossRatio > 100 ? 'text-red-600' : 
-                              periodRow.lossRatio > 80 ? 'text-yellow-600' : 
-                              'text-green-600'
-                            }`}>
-                              {formatPct(periodRow.lossRatio)}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className={`${
-                              periodRow.expenseRatio > 30 ? 'text-red-600' : 
-                              periodRow.expenseRatio > 20 ? 'text-yellow-600' : 
-                              'text-green-600'
-                            }`}>
-                              {formatPct(periodRow.expenseRatio)}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className={`${
-                              periodRow.combinedRatio > 100 ? 'text-red-600' : 
-                              periodRow.combinedRatio > 90 ? 'text-yellow-600' : 
-                              'text-green-600'
-                            }`}>
-                              {formatPct(periodRow.combinedRatio)}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-sm">
-                            {formatNumber(periodRow.numberOfAccounts)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-sm">
-                            {formatCurrencyNumeric(periodRow.avgMaxLiability)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </TableCell>
-            </motion.tr>
-          )}
+          {canExpand && isExpanded && periodDataMap.has(row.uy) && 
+            periodDataMap.get(row.uy)!.map((periodRow, periodIndex) => (
+              <motion.tr
+                key={`${row.uy}-${periodRow.period}-${periodIndex}`}
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2, delay: periodIndex * 0.03 }}
+                className="bg-muted/10 hover:bg-muted/20 border-b"
+              >
+                <TableCell className="font-medium text-muted-foreground">
+                  <div className="flex items-center gap-2 pl-6">
+                    <span>{periodRow.period}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm">
+                  {formatCurrencyNumeric(periodRow.premium)}
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm">
+                  {formatCurrencyNumeric(periodRow.paidClaims)}
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm">
+                  {formatCurrencyNumeric(periodRow.outstandingClaims)}
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm">
+                  {formatCurrencyNumeric(periodRow.incurredClaims)}
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm">
+                  {formatCurrencyNumeric(periodRow.expense)}
+                </TableCell>
+                <TableCell className="text-right">
+                  <span className={`${
+                    periodRow.lossRatio > 100 ? 'text-red-600' : 
+                    periodRow.lossRatio > 80 ? 'text-yellow-600' : 
+                    'text-green-600'
+                  }`}>
+                    {formatPct(periodRow.lossRatio)}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <span className={`${
+                    periodRow.expenseRatio > 30 ? 'text-red-600' : 
+                    periodRow.expenseRatio > 20 ? 'text-yellow-600' : 
+                    'text-green-600'
+                  }`}>
+                    {formatPct(periodRow.expenseRatio)}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <span className={`${
+                    periodRow.combinedRatio > 100 ? 'text-red-600' : 
+                    periodRow.combinedRatio > 90 ? 'text-yellow-600' : 
+                    'text-green-600'
+                  }`}>
+                    {formatPct(periodRow.combinedRatio)}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm">
+                  {formatNumber(periodRow.numberOfAccounts)}
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm">
+                  {formatCurrencyNumeric(periodRow.avgMaxLiability)}
+                </TableCell>
+              </motion.tr>
+            ))
+          }
         </AnimatePresence>
       </React.Fragment>
     );

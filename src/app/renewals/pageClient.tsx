@@ -64,6 +64,20 @@ export function RenewalFiltersClient({
     className: initialClassName ? [initialClassName] : undefined,
     loc: initialLoc,
   });
+  const [pendingFilters, setPendingFilters] = useState<{
+    year?: string;
+    quarter?: string;
+    status?: 'renewed' | 'not-renewed' | 'upcoming-renewal';
+    monthName?: string;
+    country?: string[];
+    countrySearch?: string;
+    srlSearch?: string;
+    businessType?: string[];
+    className?: string[];
+    subClass?: string[];
+    loc?: string;
+    extType?: string[];
+  }>(currentFilters);
 
   // Calculate active filter count
   const activeFilterCount = useMemo(() => {
@@ -202,27 +216,60 @@ export function RenewalFiltersClient({
       {/* Filter Dialog */}
       <FilterDialog
         open={isFilterDialogOpen}
-        onOpenChange={setIsFilterDialogOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            // Initialize pending filters with current filters when opening
+            setPendingFilters(currentFilters);
+          }
+          setIsFilterDialogOpen(open);
+          if (!open) {
+            // Reset pending filters when dialog closes without applying
+            setPendingFilters(currentFilters);
+          }
+        }}
         title="Renewals Filters"
         activeFilterCount={activeFilterCount}
-        onClearFilters={clearFilters}
+        onClearFilters={() => {
+          const emptyFilters = {
+            year: undefined,
+            quarter: undefined,
+            status: undefined,
+            monthName: undefined,
+            country: undefined,
+            countrySearch: undefined,
+            srlSearch: undefined,
+            businessType: undefined,
+            className: undefined,
+            subClass: undefined,
+            loc: undefined,
+            extType: undefined,
+          };
+          setPendingFilters(emptyFilters);
+          fetchSummary(emptyFilters);
+          setIsFilterDialogOpen(false);
+        }}
+        onApply={() => {
+          fetchSummary(pendingFilters);
+          setCurrentFilters(pendingFilters);
+          setIsFilterDialogOpen(false);
+        }}
         className="max-w-6xl w-[95vw] sm:w-full"
       >
         <RenewalFilters
-          initialYear={currentFilters.year}
-          initialQuarter={currentFilters.quarter}
-          initialStatus={currentFilters.status}
-          initialMonthName={currentFilters.monthName}
-          initialCountry={currentFilters.country?.[0]}
-          initialBusinessType={currentFilters.businessType?.[0]}
-          initialClassName={currentFilters.className?.[0]}
-          initialCountrySearch={currentFilters.countrySearch}
-          initialSrlSearch={currentFilters.srlSearch}
-          initialLoc={currentFilters.loc}
+          initialYear={pendingFilters.year}
+          initialQuarter={pendingFilters.quarter}
+          initialStatus={pendingFilters.status}
+          initialMonthName={pendingFilters.monthName}
+          initialCountry={pendingFilters.country?.[0]}
+          initialBusinessType={pendingFilters.businessType?.[0]}
+          initialClassName={pendingFilters.className?.[0]}
+          initialCountrySearch={pendingFilters.countrySearch}
+          initialSrlSearch={pendingFilters.srlSearch}
+          initialLoc={pendingFilters.loc}
           filterOptions={filterOptions}
           onChange={(filters) => {
-            fetchSummary(filters);
-            setIsFilterDialogOpen(false);
+            // Only update pending filters, don't apply yet
+            setPendingFilters(filters);
           }}
           inDialog={true}
         />

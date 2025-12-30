@@ -93,3 +93,4 @@ RAILWAY_TOKEN=token_here npm run check:deployment
 DEPLOYMENT_URL=https://myapp.railway.app npm run check:deployment:simple
 ```
 
+

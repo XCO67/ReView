@@ -1,7 +1,10 @@
 'use client';
 
-import { useMemo, useEffect, useRef, useCallback } from 'react';
+import { useMemo, useEffect, useRef, useCallback, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import * as d3 from 'd3';
 import { useFormatCurrency } from '@/lib/format-currency';
 import { useCurrency } from '@/contexts/CurrencyContext';
@@ -41,6 +44,10 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | null>(null);
   const isCanvasModeRef = useRef(false);
+  
+  // Premium Range state
+  const [premiumRangeFrom, setPremiumRangeFrom] = useState<string>('');
+  const [premiumRangeTo, setPremiumRangeTo] = useState<string>('');
 
   // Prepare chart data: each record becomes a dot
   // Limit to MAX_DOTS for performance
@@ -50,8 +57,13 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
         const maxLiability = convertValue(record.maxLiabilityKD || 0);
         const premium = convertValue(record.grsPremKD || 0);
         
-        // Only include records with valid data
-        return maxLiability > 0 && premium > 0 && maxLiability <= 10000000 && premium <= 600000;
+        // Apply premium range filter if set
+        const fromPremium = premiumRangeFrom ? parseFloat(premiumRangeFrom) : 0;
+        const toPremium = premiumRangeTo ? parseFloat(premiumRangeTo) : Infinity;
+        const inPremiumRange = premium >= fromPremium && premium <= toPremium;
+        
+        // Only include records with valid data and within premium range
+        return maxLiability > 0 && premium > 0 && inPremiumRange;
       })
       .map(record => {
         const maxLiability = convertValue(record.maxLiabilityKD || 0);
@@ -77,7 +89,25 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
     }
 
     return filtered;
-  }, [data, convertValue]);
+  }, [data, convertValue, premiumRangeFrom, premiumRangeTo]);
+
+  // Calculate min/max values for ranges
+  const dataRanges = useMemo(() => {
+    if (chartData.length === 0) {
+      return { premiumMin: 0, premiumMax: 600000, liabilityMin: 0, liabilityMax: 10000000 };
+    }
+    
+    const premiums = chartData.map(d => d.y);
+    const liabilities = chartData.map(d => d.x);
+    
+    return {
+      premiumMin: Math.min(...premiums),
+      premiumMax: Math.max(...premiums),
+      liabilityMin: Math.min(...liabilities),
+      liabilityMax: Math.max(...liabilities),
+    };
+  }, [chartData]);
+
 
   // Use canvas for large datasets (better performance)
   const useCanvas = chartData.length > 2000;
@@ -130,16 +160,28 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
       // Set dimensions
       svg.attr('width', width).attr('height', height);
 
-    // X-axis domain: 0 to 10M
+    // Calculate dynamic ranges
+    const premiumMin = premiumRangeFrom ? parseFloat(premiumRangeFrom) : 0;
+    const premiumMax = premiumRangeTo ? parseFloat(premiumRangeTo) : 600000;
+    const liabilityMin = dataRanges.liabilityMin;
+    const liabilityMax = dataRanges.liabilityMax;
+    
+    // Add padding to ranges
+    const premiumRange = premiumMax - premiumMin;
+    const liabilityRange = liabilityMax - liabilityMin;
+    const premiumPadding = premiumRange * 0.1;
+    const liabilityPadding = liabilityRange * 0.1;
+
+    // X-axis domain: dynamic based on filtered data
     const xScale = d3
       .scaleLinear()
-      .domain([0, 10000000]) // 0 to 10M
+      .domain([Math.max(0, liabilityMin - liabilityPadding), liabilityMax + liabilityPadding])
       .range([margin.left, width - margin.right]);
 
-    // Y-axis domain: 0 to 600K
+    // Y-axis domain: dynamic based on premium range
     const yScale = d3
       .scaleLinear()
-      .domain([0, 600000]) // 0 to 600K
+      .domain([Math.max(0, premiumMin - premiumPadding), premiumMax + premiumPadding])
       .range([height - margin.bottom, margin.top]);
 
     // Color scale based on Loss Ratio
@@ -152,48 +194,55 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
     // Create tooltip
     const tooltip = d3.select(tooltipRef.current);
 
-    // Grid lines
-    const xCheckpoints = [2500000, 5000000, 7500000, 10000000]; // 2.5M, 5M, 7.5M, 10M
-    const yCheckpoints = [300000, 600000]; // 300K, 600K (dividing lines for premium zones)
+    // Generate tick values for axes (needed for grid lines)
+    const xDomain = xScale.domain();
+    const yDomain = yScale.domain();
+    const xTicks = d3.ticks(xDomain[0], xDomain[1], 5);
+    const yTicks = d3.ticks(yDomain[0], yDomain[1], 6);
 
+    // Grid lines - use dynamic tick values
     // Vertical grid lines
-    xCheckpoints.forEach(val => {
-      svg.append('line')
-        .attr('x1', xScale(val))
-        .attr('x2', xScale(val))
-        .attr('y1', margin.top)
-        .attr('y2', height - margin.bottom)
-        .attr('stroke', '#e5e7eb')
-        .attr('stroke-width', 1)
-        .attr('stroke-dasharray', '2,2')
-        .attr('opacity', 0.5);
+    xTicks.forEach(val => {
+      if (val > xDomain[0] && val < xDomain[1]) {
+        svg.append('line')
+          .attr('x1', xScale(val))
+          .attr('x2', xScale(val))
+          .attr('y1', margin.top)
+          .attr('y2', height - margin.bottom)
+          .attr('stroke', '#e5e7eb')
+          .attr('stroke-width', 1)
+          .attr('stroke-dasharray', '2,2')
+          .attr('opacity', 0.5);
+      }
     });
 
     // Horizontal grid lines
-    yCheckpoints.forEach(val => {
-      svg.append('line')
-        .attr('x1', margin.left)
-        .attr('x2', width - margin.right)
-        .attr('y1', yScale(val))
-        .attr('y2', yScale(val))
-        .attr('stroke', '#e5e7eb')
-        .attr('stroke-width', 1)
-        .attr('stroke-dasharray', '2,2')
-        .attr('opacity', 0.5);
+    yTicks.forEach(val => {
+      if (val > yDomain[0] && val < yDomain[1]) {
+        svg.append('line')
+          .attr('x1', margin.left)
+          .attr('x2', width - margin.right)
+          .attr('y1', yScale(val))
+          .attr('y2', yScale(val))
+          .attr('stroke', '#e5e7eb')
+          .attr('stroke-width', 1)
+          .attr('stroke-dasharray', '2,2')
+          .attr('opacity', 0.5);
+      }
     });
 
-    // Add axes
+    // Add axes with dynamic tick values
     const xAxis = d3.axisBottom(xScale)
-      .tickValues([0, 2500000, 5000000, 7500000, 10000000])
+      .tickValues(xTicks)
       .tickFormat(d => {
         const val = d as number;
         if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
         if (val >= 1000) return `${(val / 1000).toFixed(0)}K`;
-        return '0';
+        return val.toString();
       });
 
     const yAxis = d3.axisLeft(yScale)
-      .tickValues([0, 100000, 200000, 300000, 400000, 500000, 600000])
+      .tickValues(yTicks)
       .tickFormat(d => {
         const val = d as number;
         if (val >= 1000) return `${(val / 1000).toFixed(0)}K`;
@@ -210,7 +259,7 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
       .style('text-anchor', 'middle')
       .style('font-size', '12px')
       .style('font-weight', '500')
-      .text('Max Liability');
+      .text('Max Liability (for share)');
 
     svg.append('g')
       .attr('transform', `translate(${margin.left},0)`)
@@ -223,61 +272,45 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
       .style('text-anchor', 'middle')
       .style('font-size', '12px')
       .style('font-weight', '500')
-      .text('Premium');
+      .text('Premium (for share)');
 
-    // Reference lines for quadrants
-    const midX = xScale(5000000); // 5M
-    const midY = yScale(300000); // 300K (middle of 0-600K range)
+    // Reference lines for quadrants - use midpoints of dynamic ranges
+    const midX = xScale((liabilityMin + liabilityMax) / 2);
+    const midY = yScale((premiumMin + premiumMax) / 2);
 
     // Add premium range background gradients FIRST (behind everything)
-    // Low premium range (0-300K): Light blue
+    // Low premium range (below midpoint): Light blue
     svg.append('rect')
       .attr('x', margin.left)
-      .attr('y', yScale(300000))
+      .attr('y', midY)
       .attr('width', width - margin.left - margin.right)
-      .attr('height', yScale(0) - yScale(300000))
+      .attr('height', yScale(yDomain[0]) - midY)
       .attr('fill', 'rgba(59, 130, 246, 0.06)');
 
-    // High premium range (300K-600K): Light green
+    // High premium range (above midpoint): Light green
     svg.append('rect')
       .attr('x', margin.left)
-      .attr('y', yScale(600000))
+      .attr('y', margin.top)
       .attr('width', width - margin.left - margin.right)
-      .attr('height', yScale(300000) - yScale(600000))
+      .attr('height', midY - margin.top)
       .attr('fill', 'rgba(34, 197, 94, 0.06)');
 
     // Add liability range background gradients (vertical zones)
-    // Low liability range (0-2.5M): Light blue
+    // Low liability range (left of midpoint): Light blue
     svg.append('rect')
       .attr('x', margin.left)
       .attr('y', margin.top)
-      .attr('width', xScale(2500000) - margin.left)
+      .attr('width', midX - margin.left)
       .attr('height', height - margin.top - margin.bottom)
       .attr('fill', 'rgba(59, 130, 246, 0.04)');
 
-    // Medium-low liability range (2.5M-5M): Light green
+    // High liability range (right of midpoint): Light green
     svg.append('rect')
-      .attr('x', xScale(2500000))
+      .attr('x', midX)
       .attr('y', margin.top)
-      .attr('width', xScale(5000000) - xScale(2500000))
+      .attr('width', width - margin.right - midX)
       .attr('height', height - margin.top - margin.bottom)
       .attr('fill', 'rgba(34, 197, 94, 0.04)');
-
-    // Medium-high liability range (5M-7.5M): Light yellow
-    svg.append('rect')
-      .attr('x', xScale(5000000))
-      .attr('y', margin.top)
-      .attr('width', xScale(7500000) - xScale(5000000))
-      .attr('height', height - margin.top - margin.bottom)
-      .attr('fill', 'rgba(234, 179, 8, 0.04)');
-
-    // High liability range (7.5M-10M): Light orange
-    svg.append('rect')
-      .attr('x', xScale(7500000))
-      .attr('y', margin.top)
-      .attr('width', width - margin.right - xScale(7500000))
-      .attr('height', height - margin.top - margin.bottom)
-      .attr('fill', 'rgba(249, 115, 22, 0.04)');
 
     // Quadrant backgrounds (on top of premium ranges)
     const chartWidth = width - margin.left - margin.right;
@@ -326,6 +359,51 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
       .attr('stroke', 'rgba(239, 68, 68, 0.2)')
       .attr('stroke-width', 1)
       .attr('stroke-dasharray', '3,3');
+
+    // Add quadrant labels
+    // Bottom-Left: LPLL
+    svg.append('text')
+      .attr('x', margin.left + (midX - margin.left) / 2)
+      .attr('y', midY + (height - margin.bottom - midY) / 2)
+      .attr('fill', 'currentColor')
+      .style('text-anchor', 'middle')
+      .style('font-size', '14px')
+      .style('font-weight', 'bold')
+      .style('pointer-events', 'none')
+      .text('LPLL');
+
+    // Bottom-Right: LPHL
+    svg.append('text')
+      .attr('x', midX + (width - margin.right - midX) / 2)
+      .attr('y', midY + (height - margin.bottom - midY) / 2)
+      .attr('fill', 'currentColor')
+      .style('text-anchor', 'middle')
+      .style('font-size', '14px')
+      .style('font-weight', 'bold')
+      .style('pointer-events', 'none')
+      .text('LPHL');
+
+    // Top-Left: HPLL
+    svg.append('text')
+      .attr('x', margin.left + (midX - margin.left) / 2)
+      .attr('y', margin.top + (midY - margin.top) / 2)
+      .attr('fill', 'currentColor')
+      .style('text-anchor', 'middle')
+      .style('font-size', '14px')
+      .style('font-weight', 'bold')
+      .style('pointer-events', 'none')
+      .text('HPLL');
+
+    // Top-Right: HPHL
+    svg.append('text')
+      .attr('x', midX + (width - margin.right - midX) / 2)
+      .attr('y', margin.top + (midY - margin.top) / 2)
+      .attr('fill', 'currentColor')
+      .style('text-anchor', 'middle')
+      .style('font-size', '14px')
+      .style('font-weight', 'bold')
+      .style('pointer-events', 'none')
+      .text('HPHL');
 
     // Reference lines (quadrant dividers)
     svg.append('line')
@@ -475,7 +553,7 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
         svg.selectAll('*').remove();
       }
     };
-  }, [chartData, formatCurrencyNumeric, convertValue, useCanvas, updateTooltip, data]);
+  }, [chartData, formatCurrencyNumeric, convertValue, useCanvas, updateTooltip, data, premiumRangeFrom, premiumRangeTo, dataRanges]);
 
   const emptyState = (
     <div className="flex items-center justify-center h-[600px] text-muted-foreground">
@@ -485,6 +563,54 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
 
   const chartContent = (
     <>
+      {/* Premium Range Controls */}
+      <div className="mb-4 p-4 border rounded-lg bg-muted/30">
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="premium-from" className="text-sm font-medium whitespace-nowrap">
+              Premium Range:
+            </Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="premium-from"
+                type="number"
+                placeholder="From"
+                value={premiumRangeFrom}
+                onChange={(e) => setPremiumRangeFrom(e.target.value)}
+                className="w-24 h-8 text-sm"
+                min="0"
+              />
+              <span className="text-sm text-muted-foreground">-</span>
+              <Input
+                id="premium-to"
+                type="number"
+                placeholder="To"
+                value={premiumRangeTo}
+                onChange={(e) => setPremiumRangeTo(e.target.value)}
+                className="w-24 h-8 text-sm"
+                min="0"
+              />
+            </div>
+            {(premiumRangeFrom || premiumRangeTo) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setPremiumRangeFrom('');
+                  setPremiumRangeTo('');
+                }}
+                className="h-8 text-xs"
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Max Liability Range: {formatCurrencyNumeric(dataRanges.liabilityMin)} - {formatCurrencyNumeric(dataRanges.liabilityMax)}
+          </div>
+        </div>
+      </div>
+
       <div className="relative">
         <svg ref={svgRef} className="w-full" style={{ position: 'relative', zIndex: 1 }} />
         {useCanvas && (
@@ -504,7 +630,10 @@ export function QuadrantChart({ data, className, noCard = false }: QuadrantChart
             Showing {MAX_DOTS.toLocaleString()} of {data.filter(r => {
               const maxLiability = convertValue(r.maxLiabilityKD || 0);
               const premium = convertValue(r.grsPremKD || 0);
-              return maxLiability > 0 && premium > 0 && maxLiability <= 10000000 && premium <= 600000;
+              const fromPremium = premiumRangeFrom ? parseFloat(premiumRangeFrom) : 0;
+              const toPremium = premiumRangeTo ? parseFloat(premiumRangeTo) : Infinity;
+              const inPremiumRange = premium >= fromPremium && premium <= toPremium;
+              return maxLiability > 0 && premium > 0 && inPremiumRange;
             }).length.toLocaleString()} records
           </div>
         )}
