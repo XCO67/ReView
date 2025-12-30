@@ -265,13 +265,25 @@ export default function RiskAssessmentTable({ initialData }: RiskAssessmentTable
 
   // LOB dropdown options
   const lobOptions = ['FAC', 'TTY', 'TTY & FAC'];
+  
+  // Unit dropdown options
+  const unitOptions = [
+    'accounting & finance',
+    'acturial',
+    'ALL',
+    'Claims',
+    'Compliance',
+    'Human Resources',
+    'Information Technology',
+    'Underwriting'
+  ];
 
   const columns = [
     { key: 'risk_id', label: 'Risk ID', width: '120px', required: true },
     { key: 'risk_item', label: 'RISK ITEM', width: '220px' },
     { key: 'risk_description', label: 'RISK DESCRIPTION', width: '320px' },
     { key: 'control_exist', label: 'CONTROL EXIST?', width: '130px' },
-    { key: 'unit', label: 'UNIT', width: '160px' },
+    { key: 'unit', label: 'UNIT', width: '160px', isDropdown: true, options: unitOptions },
     { key: 'lob', label: 'LOB', width: '130px', isDropdown: true, options: lobOptions },
     { key: 'class', label: 'CLASS', width: '160px' },
     { key: 'risk_owner', label: 'Risk Owner', width: '160px' },
@@ -314,8 +326,8 @@ export default function RiskAssessmentTable({ initialData }: RiskAssessmentTable
       : getFieldValue(item as RiskControlAssessment, col.key);
 
     if (isNewRow) {
-      // Use Select dropdown for LOB field
-      if (col.key === 'lob' && col.isDropdown && col.options) {
+      // Use Select dropdown for LOB and Unit fields
+      if ((col.key === 'lob' || col.key === 'unit') && col.isDropdown && col.options) {
         return (
           <TableCell
             key={col.key}
@@ -369,7 +381,7 @@ export default function RiskAssessmentTable({ initialData }: RiskAssessmentTable
       >
         {isEditing ? (
           <div className="flex items-start gap-2">
-            {col.key === 'lob' && col.isDropdown && col.options ? (
+            {(col.key === 'lob' || col.key === 'unit') && col.isDropdown && col.options ? (
               <Select
                 value={editValue || ''}
                 onValueChange={(selectedValue) => {
@@ -542,8 +554,8 @@ export default function RiskAssessmentTable({ initialData }: RiskAssessmentTable
                         </TableCell>
                       );
                     }
-                    // Use Select dropdown for LOB field
-                    if (col.key === 'lob' && col.isDropdown && col.options) {
+                    // Use Select dropdown for LOB and Unit fields
+                    if ((col.key === 'lob' || col.key === 'unit') && col.isDropdown && col.options) {
                       return (
                         <TableCell
                           key={col.key}
