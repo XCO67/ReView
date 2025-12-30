@@ -28,6 +28,11 @@ class Logger {
     const sensitiveKeys = ['password', 'secret', 'token', 'auth', 'credential', 'key', 'hash'];
     
     for (const [key, value] of Object.entries(context)) {
+      // Skip undefined values
+      if (value === undefined) {
+        continue;
+      }
+      
       const lowerKey = key.toLowerCase();
       if (sensitiveKeys.some(sensitive => lowerKey.includes(sensitive))) {
         sanitized[key] = '[REDACTED]';
@@ -59,7 +64,7 @@ class Logger {
 
   error(message: string, error?: Error | unknown, context?: LogContext): void {
     // Always log errors, but sanitize in production
-    const errorContext: LogContext = { ...context };
+    const errorContext: LogContext = context ? { ...context } : {};
     
     if (error instanceof Error) {
       if (this.isDevelopment) {
@@ -73,7 +78,18 @@ class Logger {
         };
       }
     } else if (error) {
-      errorContext.error = String(error);
+      // For non-Error objects, extract only safe properties
+      if (typeof error === 'object' && error !== null) {
+        const errorObj = error as Record<string, unknown>;
+        const safeError: LogContext = {};
+        // Only include common error properties, skip undefined
+        if (errorObj.message !== undefined) safeError.message = String(errorObj.message);
+        if (errorObj.code !== undefined) safeError.code = String(errorObj.code);
+        if (errorObj.name !== undefined) safeError.name = String(errorObj.name);
+        errorContext.error = safeError;
+      } else {
+        errorContext.error = String(error);
+      }
     }
 
     console.error(this.formatMessage('error', message, errorContext));
