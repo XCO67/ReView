@@ -44,9 +44,23 @@ export function PremiumByExtTypeDonut({ data, className }: PremiumByExtTypeDonut
   const allTotalPremium = allChartData.reduce((sum, item) => sum + item.value, 0);
   const allTopExtType = allChartData[0];
 
+  // Helper function to check if record belongs to FERO
+  const isFERO = (record: ReinsuranceData): boolean => {
+    const loc = record.loc?.trim().toUpperCase();
+    const office = record.office?.trim().toUpperCase();
+    return loc === 'FERO' || office === 'FERO';
+  };
+
+  // Helper function to check if record belongs to HO
+  const isHO = (record: ReinsuranceData): boolean => {
+    const loc = record.loc?.trim().toUpperCase();
+    const office = record.office?.trim().toUpperCase();
+    return loc === 'HO' || office === 'HO';
+  };
+
   // FERO data chart
   const feroData = useMemo(() => 
-    data.filter(record => record.loc && record.loc.toUpperCase() === 'FERO'),
+    data.filter(record => isFERO(record)),
     [data]
   );
   const feroChartData = useMemo(() => calculateChartData(feroData), [feroData]);
@@ -55,7 +69,7 @@ export function PremiumByExtTypeDonut({ data, className }: PremiumByExtTypeDonut
 
   // HO data chart
   const hoData = useMemo(() => 
-    data.filter(record => record.loc && record.loc.toUpperCase() === 'HO'),
+    data.filter(record => isHO(record)),
     [data]
   );
   const hoChartData = useMemo(() => calculateChartData(hoData), [hoData]);
