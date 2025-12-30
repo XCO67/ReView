@@ -279,7 +279,9 @@ export function RenewalFilters({
           className={cn(
             "transition-all duration-300 ease-in-out",
             inDialog || isExpanded
-              ? "max-h-[800px] opacity-100 overflow-y-auto overflow-x-hidden" 
+              ? inDialog 
+                ? "opacity-100" 
+                : "max-h-[800px] opacity-100 overflow-y-auto overflow-x-hidden"
               : "max-h-0 overflow-hidden opacity-0"
           )}
         >
